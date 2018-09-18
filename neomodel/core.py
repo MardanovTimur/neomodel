@@ -2,10 +2,11 @@ import re
 import sys
 import warnings
 
+from uuid import uuid4
 from neomodel import config
 from neomodel.exceptions import DoesNotExist
 from neomodel.hooks import hooks
-from neomodel.properties import Property, PropertyManager
+from neomodel.properties import Property, PropertyManager, StringProperty
 from neomodel.util import Database, classproperty, _UnsavedNode, _get_node_properties
 
 db = Database()
@@ -178,7 +179,11 @@ class NodeMeta(type):
 NodeBase = NodeMeta('NodeBase', (PropertyManager,), {'__abstract_node__': True})
 
 
-class StructuredNode(NodeBase):
+class UUID(object):
+    uid = StringProperty(unique_index=True, default=uuid4)
+
+
+class StructuredNode(NodeBase, UUID):
     """
     Base class for all node definitions to inherit from.
 
