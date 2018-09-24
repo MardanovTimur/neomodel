@@ -81,7 +81,8 @@ def install_labels(cls, quiet=True, stdout=None):
 
     if not hasattr(cls, '__label__'):
         if not quiet:
-            stdout.write(' ! Skipping class {}.{} is abstract\n'.format(cls.__module__, cls.__name__))
+            stdout.write(' ! Skipping class {}.{} is abstract\n'.format(
+                cls.__module__, cls.__name__))
         return
 
     for name, property in cls.defined_properties(aliases=False, rels=False).items():
@@ -101,7 +102,7 @@ def install_labels(cls, quiet=True, stdout=None):
 
             db.cypher_query("CREATE CONSTRAINT "
                             "on (n:{}) ASSERT n.{} IS UNIQUE; ".format(
-                cls.__label__, db_property))
+                                cls.__label__, db_property))
 
 
 def install_all_labels(stdout=None):
@@ -267,7 +268,8 @@ class StructuredNode(NodeBase, UUID):
         else:
             # validate relationship
             if not isinstance(relationship.source, StructuredNode):
-                raise ValueError("relationship source [%s] is not a StructuredNode" % repr(relationship.source))
+                raise ValueError(
+                    "relationship source [%s] is not a StructuredNode" % repr(relationship.source))
             relation_type = relationship.definition.get('relation_type')
             if not relation_type:
                 raise ValueError('No relation_type is specified on provided relationship')
@@ -275,7 +277,8 @@ class StructuredNode(NodeBase, UUID):
             from .match import OUTGOING, _rel_helper
 
             query_params["source_id"] = relationship.source.id
-            query = "MATCH (source:{}) WHERE ID(source) = {{source_id}}\n ".format(relationship.source.__label__)
+            query = "MATCH (source:{}) WHERE ID(source) = {{source_id}}\n ".format(
+                relationship.source.__label__)
             query += "WITH source\n UNWIND {merge_params} as params \n "
             query += "MERGE "
             query += _rel_helper(rhs='source', lhs=n_merge, ident=None,
@@ -297,7 +300,7 @@ class StructuredNode(NodeBase, UUID):
     @classmethod
     def category(cls):
         raise NotImplementedError("Category was deprecated and has now been removed, "
-            "the functionality is now achieved using the {}.nodes attribute".format(cls.__name__))
+                                  "the functionality is now achieved using the {}.nodes attribute".format(cls.__name__))
 
     @classmethod
     def create(cls, *props, **kwargs):
@@ -422,7 +425,8 @@ class StructuredNode(NodeBase, UUID):
 
         # build merge query
         get_or_create_params = [{"create": cls.deflate(p, skip_empty=True)} for p in props]
-        query, params = cls._build_merge_query(get_or_create_params, relationship=relationship, lazy=lazy)
+        query, params = cls._build_merge_query(
+            get_or_create_params, relationship=relationship, lazy=lazy)
 
         if 'streaming' in kwargs:
             warnings.warn('streaming is not supported by bolt, please remove the kwarg',
@@ -499,7 +503,7 @@ class StructuredNode(NodeBase, UUID):
         self._pre_action_check('refresh')
         if hasattr(self, 'id'):
             request = self.cypher("MATCH (n) WHERE id(n)={self}"
-                                            " RETURN n")[0]
+                                  " RETURN n")[0]
             if not request or not request[0]:
                 raise self.__class__.DoesNotExist("Can't refresh non existent node")
             node = self.inflate(request[0][0])
