@@ -519,8 +519,6 @@ class StructuredNode(NodeBase, UUID):
 
         :return: the node instance
         """
-
-        print(self.__properties__)
         # create or update instance node
         if hasattr(self, 'id'):
             # update
