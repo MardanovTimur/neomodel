@@ -520,11 +520,15 @@ class StructuredNode(NodeBase, UUID):
         :return: the node instance
         """
 
+        print(self.__properties__)
         # create or update instance node
         if hasattr(self, 'id'):
+            print('as')
             # update
-            if hasattr(self, 'updated_at') and self.updated_at is not None:
+            if 'updated_at' in self.__properties__:
+                print(self.__properties__)
                 if isinstance(self.updated_at, datetime.datetime):
+                    print('datetime')
                     self.__properties__['updated_at'] = datetime.datetime.now()
                     self.updated_at = datetime.datetime.now()
                 elif isinstance(self.updated_at, datetime.date):
