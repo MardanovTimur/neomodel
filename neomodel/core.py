@@ -523,15 +523,12 @@ class StructuredNode(NodeBase, UUID):
         print(self.__properties__)
         # create or update instance node
         if hasattr(self, 'id'):
-            print('as')
             # update
-            if 'updated_at' in self.__properties__:
-                print(self.__properties__)
-                if isinstance(self.updated_at, datetime.datetime):
-                    print('datetime')
+            if hasattr(self, 'updated_at'):
+                if isinstance(self.updated_at, (datetime.datetime, None)):
                     self.__properties__['updated_at'] = datetime.datetime.now()
                     self.updated_at = datetime.datetime.now()
-                elif isinstance(self.updated_at, datetime.date):
+                elif isinstance(self.updated_at, (datetime.date, None)):
                     self.__properties__['updated_at'] = datetime.date.today()
                     self.updated_at = datetime.date.today()
             params = self.deflate(self.__properties__, self)
