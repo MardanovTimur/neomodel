@@ -1,6 +1,7 @@
 import re
 import sys
 import warnings
+import datetime
 
 from uuid import uuid4
 from neomodel import config
@@ -518,6 +519,11 @@ class StructuredNode(NodeBase, UUID):
         # create or update instance node
         if hasattr(self, 'id'):
             # update
+            if hasattr(self, 'updated_at') and self.updated_at is not None:
+                if isinstance(self.updated_at, datetime.datetime):
+                    self.updated_at = datetime.datetime.now()
+                elif isinstance(self.updated_at, datetime.date):
+                    self.updated_at = datetime.date.today()
             params = self.deflate(self.__properties__, self)
             query = "MATCH (n) WHERE id(n)={self} \n"
             query += "\n".join(["SET n.{} = {{{}}}".format(key, key) + "\n"
