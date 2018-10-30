@@ -5,6 +5,7 @@ import types
 import re
 import uuid
 import warnings
+import numpy as np
 from datetime import date, datetime
 
 import pytz
@@ -491,6 +492,32 @@ class JSONProperty(Property):
 
     @validator
     def deflate(self, value):
+        return json.dumps(value)
+
+
+class JsonArrayProperty(Property):
+    """Stored in neo4j as json format
+    Checks : np.ndarray, list, tuple
+
+    Arguments:
+        shape (int), default=1: shape of array
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.shape = kwargs.pop('shape', 1)
+        super(JsonArrayProperty, self).__init__(*args, **kwargs)
+
+    @validator
+    def inflate(self, value):
+        return json.loads(value)
+
+    @validator
+    def deflate(self, value):
+        if not isinstance(value, (list, tuple, np.ndarray)):
+            raise Exception("This type should be list or np.ndarray")
+        points = np.array(value)
+        if len(points.shape) != self.shape:
+            raise Exception("Shape error. Should be {shape}".format(shape=self.shape))
         return json.dumps(value)
 
 
