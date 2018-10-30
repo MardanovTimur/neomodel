@@ -511,14 +511,20 @@ class JsonArrayProperty(Property):
     def inflate(self, value):
         return json.loads(value)
 
+    def iterate_inn(self, arr):
+        for i in arr:
+            if isinstance(i, (list, np.ndarray, tuple)):
+                self.iterate_inn(i)
+            else:
+                if not isinstance(i, self.type):
+                    raise Exception("Incorrect type {i}".format(i=i))
+
     @validator
     def deflate(self, value):
         if not isinstance(value, (list, tuple, np.ndarray)):
             raise Exception("This type should be list or np.ndarray")
         arr = np.array(value)
-        for i in arr.reshape((np.count_nonzero(arr), )):
-            if not isinstance(i, self.type):
-                raise Exception("Incorrect type {i}".format(i=i))
+        self.iterate_inn(arr)
         return json.dumps(value)
 
 
