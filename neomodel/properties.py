@@ -504,7 +504,7 @@ class JsonArrayProperty(Property):
     """
 
     def __init__(self, *args, **kwargs):
-        self.shape = kwargs.pop('shape', 1)
+        self.type = kwargs.pop('type', str)
         super(JsonArrayProperty, self).__init__(*args, **kwargs)
 
     @validator
@@ -515,9 +515,10 @@ class JsonArrayProperty(Property):
     def deflate(self, value):
         if not isinstance(value, (list, tuple, np.ndarray)):
             raise Exception("This type should be list or np.ndarray")
-        points = np.array(value)
-        if len(points.shape) != self.shape:
-            raise Exception("Shape error. Should be {shape}".format(shape=self.shape))
+        arr = np.array(value)
+        for i in arr.reshape((np.count_nonzero(arr), )):
+            if not isinstance(i, self.type):
+                raise Exception("Incorrect type {i}".format(i=i))
         return json.dumps(value)
 
 
