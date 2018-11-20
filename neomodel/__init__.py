@@ -14,9 +14,10 @@ from .cardinality import (ZeroOrMore, OneOrMore, ZeroOrOne, One)
 from .properties import (StringProperty, IntegerProperty, AliasProperty,
                          FloatProperty, BooleanProperty, DateTimeProperty, DateProperty,
                          NormalizedProperty, RegexProperty, EmailProperty,
-                         JSONProperty, ArrayProperty, UniqueIdProperty)
+                         JSONProperty, ArrayProperty, UniqueIdProperty, JsonArrayProperty)
 
 __author__ = 'Robin Edwards'
+__second_author__ = 'Timur Mardanov'
 __email__ = 'robin.ge@gmail.com'
 __license__ = 'MIT'
 __package__ = 'neomodel'
