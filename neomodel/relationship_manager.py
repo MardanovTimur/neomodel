@@ -3,7 +3,7 @@ import functools
 from importlib import import_module
 from .exceptions import NotConnected
 from .util import deprecated, _get_node_properties
-from .match import OUTGOING, INCOMING, EITHER, _rel_helper, Traversal, NodeSet
+from .match import OUTGOING, INCOMING, EITHER, _rel_helper, Traversal, NodeSet, process_filter_args
 from .relationship import StructuredRel
 from .match import TraversalRelationships
 
@@ -162,7 +162,7 @@ class RelationshipManager(object):
         return [self._set_start_end_cls(rel_model.inflate(rel[0]), node) for rel in rels]
 
     @check_source
-    def filter_relationships(self, node, **kwargs):
+    def filter_relationships(self, node, operator="AND", **kwargs):
         """
         Filter and get all relationship objects between self and node by kwargs.
 
@@ -171,9 +171,28 @@ class RelationshipManager(object):
         :return: [StructuredRel]
         """
         self._check_node(node)
+        my_rel = _rel_helper(lhs='us', rhs='them', ident='r', **self.definition)
 
-        definition = _rel_helper(lhs='us', rhs='them', ident='r', **self.definition)
-        return TraversalRelationships(self.source, self.name, self.definition).match(**kwargs)
+        # build relationship where
+        output = process_filter_args(self.definition['model'], kwargs)
+        where_query = "WHERE id(them)={them} AND id(us)={self}"
+        parameters = {}
+        if output:
+            where_stmt = " {} ".format(operator).join(["r.{name} {operator} ${name}".format(name=out[0],
+                operator=out[1][0]) for out in output.items()])
+            where_query += " AND ({})".format(where_stmt)
+            parameters = dict([(out[0], out[1][1]) for out in output])
+
+
+        q = "MATCH " + my_rel + "{}  RETURN r".format(where_query)
+        rels = self.source.cypher(q, {'them': node.id, **parameters})[0] #noqa
+        print(rels)
+        if not rels:
+            return
+
+        rel_model = self.definition.get('model') or StructuredRel
+
+        return [self._set_start_end_cls(rel_model.inflate(rel), node) for rel in rels[0]]
 
     def _set_start_end_cls(self, rel_instance, obj):
         if self.definition['direction'] == INCOMING:
