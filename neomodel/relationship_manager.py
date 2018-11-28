@@ -186,7 +186,6 @@ class RelationshipManager(object):
 
         q = "MATCH " + my_rel + "{}  RETURN r".format(where_query)
         rels = self.source.cypher(q, {'them': node.id, **parameters})[0] #noqa
-        print(rels)
         if not rels:
             return
 
