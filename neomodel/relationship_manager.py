@@ -181,7 +181,7 @@ class RelationshipManager(object):
             where_stmt = " {} ".format(operator).join(["r.{name} {operator} ${name}".format(name=out[0],
                 operator=out[1][0]) for out in output.items()])
             where_query += " AND ({})".format(where_stmt)
-            parameters = dict([(out[0], out[1][1]) for out in output])
+            parameters = dict([(out[0], out[1][1]) for out in output.items()])
 
 
         q = "MATCH " + my_rel + "{}  RETURN r".format(where_query)
