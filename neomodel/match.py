@@ -194,31 +194,6 @@ def process_filter_args(cls, kwargs):
     return output
 
 
-@singledispatch
-def update_matches(argument, builder, key, definition):
-    raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
-
-
-@update_matches.register(bool)
-def _um_register(argument, builder, key, definition):
-    """
-    default match
-    """
-    if argument:
-        builder.must_match[key] = definition
-    else:
-        builder.dont_match[key] = definition
-
-
-@update_matches.register(NodeSet)
-@update_matches.register(StructuredNode)
-def _um_register(argument, builder, key, definition):
-    """
-    include type of finding object
-    """
-    builder.extra_match[key] = {'definition': definition, 'type': type(argument)}
-
-
 def process_has_args(builder, kwargs):
     """
     loop through has parameters check they correspond to class rels defined
@@ -340,7 +315,6 @@ class QueryBuilder(object):
         self._ast['result_class'] = cls
         return ident
 
-
     def build_additional_match(self, ident, node_set):
         """handle additional matches supplied by 'has()' calls
         """
@@ -361,7 +335,6 @@ class QueryBuilder(object):
                 self._ast['where'].append('NOT ' + stmt)
             else:
                 raise ValueError("Expecting dict got: " + repr(val))
-
 
     def _register_place_holder(self, key):
         if key in self._place_holder_registry:
@@ -706,6 +679,31 @@ class NodeSet(BaseSet):
                 self._order_by.append(prop + (' DESC' if desc else ''))
 
         return self
+
+
+@singledispatch
+def update_matches(argument, builder, key, definition):
+    raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
+
+
+@update_matches.register(bool)
+def _um_register(argument, builder, key, definition):
+    """
+    default match
+    """
+    if argument:
+        builder.must_match[key] = definition
+    else:
+        builder.dont_match[key] = definition
+
+
+@update_matches.register(NodeSet)
+@update_matches.register(StructuredNode)
+def _um_register(argument, builder, key, definition):
+    """
+    include type of finding object
+    """
+    builder.extra_match[key] = {'definition': definition, 'type': type(argument)}
 
 
 class Traversal(BaseSet):
