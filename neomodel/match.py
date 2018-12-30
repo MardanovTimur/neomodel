@@ -6,6 +6,7 @@ from .match_q import Q, QBase
 import inspect
 import re
 from functools import singledispatch
+
 OUTGOING, INCOMING, EITHER = 1, -1, 0
 
 
@@ -16,7 +17,14 @@ except NameError:
     basestring = str
 
 
-def _rel_helper(lhs, rhs, ident=None, relation_type=None, direction=None, relation_properties=None, **kwargs):
+def _rel_helper(
+        lhs,
+        rhs,
+        ident=None,
+        relation_type=None,
+        direction=None,
+        relation_properties=None,
+        **kwargs):
     """
     Generate a relationship matching string, with specified parameters.
     Examples:
@@ -286,8 +294,9 @@ class QueryBuilder(object):
         """
         # build source
         lhs_ident = self.build_source(traversal.source)
-        rhs_ident = "{alias}:{def_label}".format(alias=traversal.name,
-                                                 def_label=traversal.definition.get('node_class').__label__)
+        rhs_ident = "{alias}:{def_label}".format(
+            alias=traversal.name,
+            def_label=traversal.definition.get('node_class').__label__)
 
         if isinstance(traversal, TraversalRelationships):
             self._ast['return'] = traversal.rel_ident
@@ -331,9 +340,9 @@ class QueryBuilder(object):
         self._ast['result_class'] = cls
         return ident
 
+
     def build_additional_match(self, ident, node_set):
-        """
-            handle additional matches supplied by 'has()' calls
+        """handle additional matches supplied by 'has()' calls
         """
         source_ident = ident
 
@@ -352,6 +361,7 @@ class QueryBuilder(object):
                 self._ast['where'].append('NOT ' + stmt)
             else:
                 raise ValueError("Expecting dict got: " + repr(val))
+
 
     def _register_place_holder(self, key):
         if key in self._place_holder_registry:
@@ -554,6 +564,7 @@ class NodeSet(BaseSet):
         # used by has()
         self.must_match = {}
         self.dont_match = {}
+        self.extra_match = {}
 
     def _get(self, limit=None, **kwargs):
         self.filter(**kwargs)
