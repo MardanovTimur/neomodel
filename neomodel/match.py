@@ -362,7 +362,6 @@ class QueryBuilder(object):
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
                 self._ast['where'] += stmt
-                print('ast: ', self._ast)
             else:
                 raise ValueError("Expecting dict got: " + repr(value))
 
