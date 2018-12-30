@@ -222,6 +222,7 @@ class QueryBuilder(object):
         self._ident_count = 0
 
     def build_ast(self):
+        print(self.node_set)
         self.build_source(self.node_set)
 
         if hasattr(self.node_set, 'skip'):
