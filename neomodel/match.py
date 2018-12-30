@@ -210,6 +210,33 @@ def process_has_args(builder, kwargs):
         update_matches(value, builder, key, definition)
 
 
+@singledispatch
+def generate_label(type, **kwargs):
+    raise NotImplementedError("Label of type: {}, not implemented yet.".format(type(kwargs['value'])))
+
+
+@generate_label.register(StructuredNode)
+def _generate_label_sn(type, **kwargs):
+    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
+    where_relation = _rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=label,
+        ident='',
+        **kwargs['val'])
+    return [where_relation, ]
+
+
+@generate_label.register(NodeSet)
+def _generate_label_ns(type, **kwargs):
+    labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
+    where_relation = [_rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=label,
+        ident='',
+        **kwargs['val']) for label in labels]
+    return where_relation
+
+
 class QueryBuilder(object):
     def __init__(self, node_set):
         self.node_set = node_set
@@ -315,26 +342,33 @@ class QueryBuilder(object):
         self._ast['result_class'] = cls
         return ident
 
+    def generate_query(self, ident, node_set, attr='must_match'):
+        for key, value in getattr(node_set, attr).items():
+            if isinstance(value, dict):
+                val = value['definition']
+                label = ':' + val['node_class'].__label__
+                if attr == 'extra_match':
+                    stmt = generate_label(value['type'],
+                                          **{'val': val,
+                                             'source_ident': ident,
+                                             'label': label,
+                                             'value': value['value']})
+                else:
+                    where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
+                    stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
+                self._ast['where'] += stmt
+                print('ast: ', self._ast)
+            else:
+                raise ValueError("Expecting dict got: " + repr(value))
+
     def build_additional_match(self, ident, node_set):
         """handle additional matches supplied by 'has()' calls
         """
         source_ident = ident
 
-        for key, value in node_set.must_match.items():
-            if isinstance(value, dict):
-                label = ':' + value['node_class'].__label__
-                stmt = _rel_helper(lhs=source_ident, rhs=label, ident='', **value)
-                self._ast['where'].append(stmt)
-            else:
-                raise ValueError("Expecting dict got: " + repr(value))
-
-        for key, val in node_set.dont_match.items():
-            if isinstance(val, dict):
-                label = ':' + val['node_class'].__label__
-                stmt = _rel_helper(lhs=source_ident, rhs=label, ident='', **val)
-                self._ast['where'].append('NOT ' + stmt)
-            else:
-                raise ValueError("Expecting dict got: " + repr(val))
+        self.generate_query(ident, node_set)
+        self.generate_query(ident, node_set, 'dont_match')
+        self.generate_query(ident, node_set, 'extra_match')
 
     def _register_place_holder(self, key):
         if key in self._place_holder_registry:
@@ -692,9 +726,9 @@ def _um_register(argument, builder, key, definition):
     default match
     """
     if argument:
-        builder.must_match[key] = definition
+        builder.must_match[key] = {'definition': definition}
     else:
-        builder.dont_match[key] = definition
+        builder.dont_match[key] = {'definition': definition}
 
 
 @update_matches.register(NodeSet)
@@ -703,7 +737,11 @@ def _um_register(argument, builder, key, definition):
     """
     include type of finding object
     """
-    builder.extra_match[key] = {'definition': definition, 'type': type(argument)}
+    builder.extra_match[key] = {
+        'definition': definition,
+        'type': type(argument),
+        'value': argument,
+    }
 
 
 class Traversal(BaseSet):
