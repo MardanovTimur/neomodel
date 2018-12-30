@@ -95,7 +95,7 @@ class PropertyManager(object):
 
     @classmethod
     def defined_properties(cls, aliases=True, properties=True, rels=True):
-        from .relationship_manager import RelationshipDefinition
+        from .relationship_manager import RelationshipDefinition, RelationshipManager
         props = {}
         for baseclass in reversed(cls.__mro__):
             props.update(dict(
@@ -103,7 +103,7 @@ class PropertyManager(object):
                 if (aliases and isinstance(property, AliasProperty))
                 or (properties and isinstance(property, Property)
                     and not isinstance(property, AliasProperty))
-                or (rels and isinstance(property, RelationshipDefinition))
+                or (rels and isinstance(property, (RelationshipDefinition, RelationshipManager)))
             ))
         return props
 

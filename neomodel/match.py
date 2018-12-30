@@ -5,6 +5,7 @@ from .exceptions import MultipleNodesReturned
 from .match_q import Q, QBase
 import inspect
 import re
+from functools import singledispatch
 OUTGOING, INCOMING, EITHER = 1, -1, 0
 
 
@@ -185,32 +186,45 @@ def process_filter_args(cls, kwargs):
     return output
 
 
-def process_has_args(cls, kwargs):
+@singledispatch
+def update_matches(argument, builder, key, definition):
+    raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
+
+
+@update_matches.register(bool)
+def _um_register(argument, builder, key, definition):
+    """
+    default match
+    """
+    if argument:
+        builder.must_match[key] = definition
+    else:
+        builder.dont_match[key] = definition
+
+
+@update_matches.register(NodeSet)
+@update_matches.register(StructuredNode)
+def _um_register(argument, builder, key, definition):
+    """
+    include type of finding object
+    """
+    builder.extra_match[key] = {'definition': definition, 'type': type(argument)}
+
+
+def process_has_args(builder, kwargs):
     """
     loop through has parameters check they correspond to class rels defined
     """
+    cls = builder.source_class
     rel_definitions = cls.defined_properties(properties=False, rels=True, aliases=False)
-
-    match, dont_match = {}, {}
 
     for key, value in kwargs.items():
         if key not in rel_definitions:
             raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
 
-        rhs_ident = key
-
         rel_definitions[key]._lookup_node_class()
-
-        if value is True:
-            match[rhs_ident] = rel_definitions[key].definition
-        elif value is False:
-            dont_match[rhs_ident] = rel_definitions[key].definition
-        elif isinstance(value, NodeSet):
-            raise NotImplementedError("Not implemented yet")
-        else:
-            raise ValueError("Expecting True / False / NodeSet got: " + repr(value))
-
-    return match, dont_match
+        definition = rel_definitions[key].definition
+        update_matches(value, builder, key, definition)
 
 
 class QueryBuilder(object):
@@ -222,7 +236,6 @@ class QueryBuilder(object):
         self._ident_count = 0
 
     def build_ast(self):
-        print(self.node_set)
         self.build_source(self.node_set)
 
         if hasattr(self.node_set, 'skip'):
@@ -647,9 +660,7 @@ class NodeSet(BaseSet):
         return self
 
     def has(self, **kwargs):
-        must_match, dont_match = process_has_args(self.source_class, kwargs)
-        self.must_match.update(must_match)
-        self.dont_match.update(dont_match)
+        process_has_args(self, kwargs)
         return self
 
     def order_by(self, *props):
