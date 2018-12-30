@@ -215,27 +215,6 @@ def generate_label(type, **kwargs):
     raise NotImplementedError("Label of type: {}, not implemented yet.".format(type(kwargs['value'])))
 
 
-@generate_label.register(StructuredNode)
-def _generate_label_sn(type, **kwargs):
-    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
-    where_relation = _rel_helper(
-        lhs=kwargs['source_ident'],
-        rhs=label,
-        ident='',
-        **kwargs['val'])
-    return [where_relation, ]
-
-
-@generate_label.register(NodeSet)
-def _generate_label_ns(type, **kwargs):
-    labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
-    where_relation = [_rel_helper(
-        lhs=kwargs['source_ident'],
-        rhs=label,
-        ident='',
-        **kwargs['val']) for label in labels]
-    return where_relation
-
 
 class QueryBuilder(object):
     def __init__(self, node_set):
@@ -742,6 +721,28 @@ def _um_register(argument, builder, key, definition):
         'type': type(argument),
         'value': argument,
     }
+
+
+@generate_label.register(StructuredNode)
+def _generate_label_sn(type, **kwargs):
+    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
+    where_relation = _rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=label,
+        ident='',
+        **kwargs['val'])
+    return [where_relation, ]
+
+
+@generate_label.register(NodeSet)
+def _generate_label_ns(type, **kwargs):
+    labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
+    where_relation = [_rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=label,
+        ident='',
+        **kwargs['val']) for label in labels]
+    return where_relation
 
 
 class Traversal(BaseSet):
