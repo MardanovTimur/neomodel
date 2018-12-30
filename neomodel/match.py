@@ -211,9 +211,35 @@ def process_has_args(builder, kwargs):
 
 
 @singledispatch
+def update_matches(argument, builder, key, definition):
+    raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
+
+
+@singledispatch
 def generate_label(type, **kwargs):
     raise NotImplementedError("Label of type: {}, not implemented yet.".format(type(kwargs['value'])))
 
+
+@generate_label.register(StructuredNode)
+def _generate_label_sn(type, **kwargs):
+    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
+    where_relation = _rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=label,
+        ident='',
+        **kwargs['val'])
+    return [where_relation, ]
+
+
+@update_matches.register(bool)
+def _um_register(argument, builder, key, definition):
+    """
+    default match
+    """
+    if argument:
+        builder.must_match[key] = {'definition': definition}
+    else:
+        builder.dont_match[key] = {'definition': definition}
 
 
 class QueryBuilder(object):
@@ -327,7 +353,7 @@ class QueryBuilder(object):
                 val = value['definition']
                 label = ':' + val['node_class'].__label__
                 if attr == 'extra_match':
-                    stmt = generate_label(value['type'],
+                    stmt = generate_label(value['value'],
                                           **{'val': val,
                                              'source_ident': ident,
                                              'label': label,
@@ -694,22 +720,6 @@ class NodeSet(BaseSet):
         return self
 
 
-@singledispatch
-def update_matches(argument, builder, key, definition):
-    raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
-
-
-@update_matches.register(bool)
-def _um_register(argument, builder, key, definition):
-    """
-    default match
-    """
-    if argument:
-        builder.must_match[key] = {'definition': definition}
-    else:
-        builder.dont_match[key] = {'definition': definition}
-
-
 @update_matches.register(NodeSet)
 @update_matches.register(StructuredNode)
 def _um_register(argument, builder, key, definition):
@@ -723,17 +733,8 @@ def _um_register(argument, builder, key, definition):
     }
 
 
-@generate_label.register(StructuredNode)
-def _generate_label_sn(type, **kwargs):
-    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
-    where_relation = _rel_helper(
-        lhs=kwargs['source_ident'],
-        rhs=label,
-        ident='',
-        **kwargs['val'])
-    return [where_relation, ]
-
-
+@generate_label.register(tuple)
+@generate_label.register(list)
 @generate_label.register(NodeSet)
 def _generate_label_ns(type, **kwargs):
     labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
