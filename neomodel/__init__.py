@@ -17,7 +17,7 @@ from .properties import (StringProperty, IntegerProperty, AliasProperty,
                          JSONProperty, ArrayProperty, UniqueIdProperty, JsonArrayProperty)
 
 __author__ = 'Robin Edwards'
-__second_author__ = 'Timur Mardanov'
+__pauthor__ = 'Timur Mardanov'
 __email__ = 'robin.ge@gmail.com'
 __license__ = 'MIT'
 __package__ = 'neomodel'
