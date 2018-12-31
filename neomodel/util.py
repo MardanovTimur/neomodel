@@ -42,7 +42,7 @@ def clear_neo4j_database(db):
     db.cypher_query("MATCH (a) DETACH DELETE a")
 
 
-class Database(local):
+class Database():
     """
     A singleton object via which all operations from neomodel to the Neo4j backend are handled with.
     """
@@ -156,7 +156,6 @@ class Database(local):
                     result_list[a_result_item[0]][a_result_attribute[0]] = resolved_object
 
                 except KeyError:
-                    print(self._NODE_CLASS_REGISTRY)
                     # Not being able to match the label set of a node with a known object results
                     # in a KeyError in the internal dictionary used for resolution. If it is impossible
                     # to match, then raise an exception with more details about the error.
