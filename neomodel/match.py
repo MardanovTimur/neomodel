@@ -344,7 +344,7 @@ class QueryBuilder(object):
 
             if source.relationship_filters:
                 self.build_relationship_filters(ident,
-                                                source.relationship_filter,
+                                                source.relationship_filters,
                                                 source.source_class)
 
             return ident
