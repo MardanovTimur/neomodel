@@ -314,6 +314,8 @@ class QueryBuilder(object):
                 rel_ident = rhs_ident.lower()
 
                 matches.add(_rel_helper(ident, ':' + rhs_ident, rel_ident, rel_field.definition['relation_type']))
+                print('rel_ident: ', rel_ident)
+                print('matches :', matches)
 
                 #relationship where statement
                 for prop, op_and_val in filters.items():
@@ -326,6 +328,7 @@ class QueryBuilder(object):
                         statement = '{}.{} {} {{{}}}'.format(rel_ident, prop, op, place_holder)
                         self._query_params[place_holder] = val
                     target.append(statement)
+                    print('target: ', target)
         ret = ' {} '.format(q.connector).join(target)
         if q.negated:
             ret = 'NOT ({})'.format(ret)
