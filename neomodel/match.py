@@ -150,7 +150,7 @@ def preprocess_filter_find_args(cls, kwargs):
 
     cuttener = key.find("__")
     relationship_field = key[0:cuttener]
-    key = key[cuttener+2:]
+    key = key[cuttener + 2:]
     del cuttener
     if not hasattr(cls, relationship_field):
         raise Exception("field does not exists in source fucking idiot")
@@ -159,6 +159,7 @@ def preprocess_filter_find_args(cls, kwargs):
     kwargs = {key: value}
     res = process_filter_args(rel_field.definition['model'], kwargs)
     return res, rel_field
+
 
 def process_filter_args(cls, kwargs):
     """
@@ -303,9 +304,14 @@ class QueryBuilder(object):
                 rhs_ident = rel_field._raw_class
                 rel_ident = rhs_ident.lower()
 
-                matches.add(_rel_helper(ident, ':' + rhs_ident, rel_ident, rel_field.definition['relation_type']))
+                matches.add(
+                    _rel_helper(
+                        ident,
+                        ':' + rhs_ident,
+                        rel_ident,
+                        rel_field.definition['relation_type']))
 
-                #relationship where statement
+                # relationship where statement
                 for prop, op_and_val in filters.items():
                     op, val = op_and_val
                     if op in _UNARY_OPERATORS:
@@ -535,7 +541,6 @@ class QueryBuilder(object):
         if 'limit' in self._ast:
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
 
-
         print('logs query: ', query, self._ast)
         return query
 
@@ -564,6 +569,15 @@ class QueryBuilder(object):
         # result item returned (?)
         if results:
             return [n[0] for n in results]
+        return []
+
+    def _execute_multiple(self, resolve_objects=True):
+        query = self.build_query()
+        results, _ = db.cypher_query(query,
+                                     self._query_params,
+                                     resolve_objects=resolve_objects)
+        if results:
+            return results
         return []
 
 
@@ -651,12 +665,32 @@ class NodeSet(BaseSet):
         self.extra_match = {}
 
     def set_limit(self, limit=200):
+        """
+        Lazy limit
+        Attrs:
+            limit: int (default=200): if None provided, default used
+        Returns:
+            <NodeSet>
+        """
         self.limit = limit
         return self
 
     def set_skip(self, skip=0):
+        """
+        Lazy skip
+        Attrs:
+            skip: int (default=0): if None provided, default used
+        Returns:
+        """
         self.skip = skip
         return self
+
+    @property
+    def query_builder(self, ):
+        """
+        Return <QueryBuilder> instance.
+        """
+        return self.query_cls(self).build_ast()
 
     def _get(self, limit=None, **kwargs):
         self.filter(**kwargs)
