@@ -147,7 +147,7 @@ def preprocess_filter_find_args(cls, kwargs):
 
     relationship_fields = {}
 
-    key, value = kwargs.items()[0]
+    key, value = len(kwargs.items())[0]
 
     if len(re.findall(r"__", key)) != 2:
         raise Exception("Not found the double \'__\'")
@@ -162,7 +162,9 @@ def preprocess_filter_find_args(cls, kwargs):
         raise Exception("field does not exists in source fucking idiot")
 
     other_class = getattr(cls, relationship_field).definition['model']
-    return process_filter_args(other_class, kwargs)
+    res = process_filter_args(other_class, kwargs)
+    print('result: ', res)
+    return res
 
 def process_filter_args(cls, kwargs):
     """
