@@ -1,7 +1,7 @@
 # encoding=utf-8
 from .core import StructuredNode, db
 from .properties import AliasProperty
-from .exceptions import MultipleNodesReturned
+from .exceptions import MultipleNodesReturned, NeomodelException
 from .match_q import Q, QBase
 import inspect
 import re
@@ -276,11 +276,23 @@ class QueryBuilder(object):
     def build_ast(self):
         self.build_source(self.node_set)
 
+        if self.node_set._extra_queries['need']:
+            self.build_extra_ast(self.node_set._extra_queries)
+
         if getattr(self.node_set, 'skip', None) is not None:
             self._ast['skip'] = self.node_set.skip
         if getattr(self.node_set, 'limit', None) is not None:
             self._ast['limit'] = self.node_set.limit
         return self
+
+
+    def build_extra_ast(self, extra):
+        quote = ','
+        if extra['match']:
+            self._ast['match'] += list(extra['match'])
+        if extra.get('return') is not None:
+            self._ast['return'] = extra['return']
+
 
     def build_relationship_filters(self, ident, filters, source_class):
         if filters is not None and isinstance(filters, QBase):
@@ -588,13 +600,16 @@ class BaseSet(object):
     """
     query_cls = QueryBuilder
 
-    def all(self):
+    def all(self, multiple=False):
         """
         Return all nodes belonging to the set
         :return: list of nodes
         :rtype: list
         """
-        return self.query_cls(self).build_ast()._execute()
+        qb = self.query_cls(self).build_ast()
+        if multiple:
+            return qb._execute_multiple()
+        return qb._execute()
 
     def __iter__(self):
         return (i for i in self.query_cls(self).build_ast()._execute())
@@ -653,11 +668,20 @@ class NodeSet(BaseSet):
 
         # setup Traversal objects using relationship definitions
         install_traversals(self.source_class, self)
+        self.implicit_init()
 
+    def implicit_init(self,):
+        # lazy query builds
+        # Fields: return, match, where
+        self._extra_queries = {
+            'match': set(),
+            'where': set(),
+            'need': False,
+        }
+        # filters
         self.filters = []
         self.q_filters = Q()
         self.relationship_filters = Q()
-
         # used by has()
         self.must_match = {}
         self.dont_match = {}
@@ -813,6 +837,32 @@ class NodeSet(BaseSet):
         """
         if args or kwargs:
             self.relationship_filters = Q(self.relationship_filters & Q(*args, **kwargs))
+        return self
+
+    def append_relationship(self, field):
+        """Field must be relationship definition
+        """
+        field = getattr(self.source_class, field, None)
+        if field is None or not hasattr(field, 'definition'):
+            raise NeomodelException("Field {} not found in source_class".format(field))
+        ident = self.source.__label__.lower()
+        rhs_ident = field._raw_class
+        rel_ident = rhs_ident.lower()
+        self._extra_queries['match'].add(
+            _rel_helper(
+                ident,
+                ':' + rhs_ident,
+                rel_ident,
+                field.definition['relation_type']))
+        self._extra_queries['need'] = True
+        return self
+
+    def set_return(self, string):
+        """
+        Warning: request may be incorrect
+        """
+        self._extra_queries['return'] = string
+        self._extra_queries['need'] = True
         return self
 
     def order_by(self, *props):
