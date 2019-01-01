@@ -141,6 +141,29 @@ re._alphanum_str = frozenset(
             abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
 
 
+def preprocess_filter_find_args(cls, kwargs):
+    # realisation
+    print('preprocess filters find args', kwargs)
+
+    relationship_fields = {}
+
+    key, value = kwargs.items()[0]
+
+    if len(re.findall(r"__", key)) != 2:
+        raise Exception("Not found the double \'__\'")
+
+    cuttener = key.find("__")
+    relationship_field = key[0:cuttener]
+    key = key[cuttener+2:]
+    del cuttener
+    print("rel field : ", relationship_field, " -- ", key)
+
+    if not hasattr(cls, relationship_field):
+        raise Exception("field does not exists in source fucking idiot")
+
+    other_class = getattr(cls, relationship_field).definition['model']
+    return process_filter_args(other_class, kwargs)
+
 def process_filter_args(cls, kwargs):
     """
     loop through properties in filter parameters check they match class definition
@@ -217,7 +240,10 @@ def update_matches(argument, builder, key, definition):
 
 @singledispatch
 def generate_label(type, **kwargs):
-    raise NotImplementedError("Label of type: {}, not implemented yet.".format(type(kwargs['value'])))
+    raise NotImplementedError(
+        "Label of type: {}, not implemented yet.".format(
+            type(
+                kwargs['value'])))
 
 
 @generate_label.register(StructuredNode)
@@ -260,6 +286,41 @@ class QueryBuilder(object):
 
         return self
 
+    def build_relationship_filters(self, ident, filters, source_class):
+        print('Source class : ', source_class)
+        if filters is not None and isinstance(filters, QBase):
+            print('In if "1"')
+            match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class)
+            if match_stmt:
+                self._ast['match'].append(match_stmt)
+                self._ast['where'].append(where_stmt)
+
+    def _parse_q_find_filters(self, ident, q, source_class):
+        target = []
+        for child in q.children:
+            if isinstance(child, QBase):
+                q_childs = self._parse_q_filters(ident, child, source_class)
+                if child.connector == Q.OR:
+                    q_childs = "(" + q_childs + ")"
+                target.append(q_childs)
+            else:
+                kwargs = {child[0]: child[1]}
+                filters = preprocess_filter_find_args(source_class, kwargs)
+                for prop, op_and_val in filters.items():
+                    op, val = op_and_val
+                    if op in _UNARY_OPERATORS:
+                        # unary operators do not have a parameter
+                        statement = '{}.{} {}'.format(ident, prop, op)
+                    else:
+                        place_holder = self._register_place_holder(ident + '_' + prop)
+                        statement = '{}.{} {} {{{}}}'.format(ident, prop, op, place_holder)
+                        self._query_params[place_holder] = val
+                    target.append(statement)
+        ret = ' {} '.format(q.connector).join(target)
+        if q.negated:
+            ret = 'NOT ({})'.format(ret)
+        return ret
+
     def build_source(self, source):
         if isinstance(source, (Traversal, TraversalRelationships)):
             return self.build_traversal(source)
@@ -275,7 +336,16 @@ class QueryBuilder(object):
                 self.build_order_by(ident, source)
 
             if source.filters or source.q_filters:
-                self.build_where_stmt(ident, source.filters, source.q_filters, source_class=source.source_class)
+                self.build_where_stmt(
+                    ident,
+                    source.filters,
+                    source.q_filters,
+                    source_class=source.source_class)
+
+            if source.relationship_filters:
+                self.build_relationship_filters(ident,
+                                                source.relationship_filter,
+                                                source.source_class)
 
             return ident
         elif isinstance(source, StructuredNode):
@@ -375,10 +445,7 @@ class QueryBuilder(object):
         self.generate_query(ident, node_set, 'extra_match')
 
     def _register_place_holder(self, key):
-        if key in self._place_holder_registry:
-            self._place_holder_registry[key] += 1
-        else:
-            self._place_holder_registry[key] = 1
+        self._place_holder_registry[key] = self._place_holder_registry.get(key, 0) + 1
         return key + '_' + str(self._place_holder_registry[key])
 
     def _parse_q_filters(self, ident, q, source_class):
@@ -468,6 +535,9 @@ class QueryBuilder(object):
         if 'limit' in self._ast:
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
 
+
+        print('logs: ', query, self._ast)
+
         return query
 
     def _count(self):
@@ -488,16 +558,16 @@ class QueryBuilder(object):
 
     def _execute(self):
         query = self.build_query()
-        results, _ = db.cypher_query(query, self._query_params, resolve_objects=True)            
-        # The following is not as elegant as it could be but had to be copied from the 
+        results, _ = db.cypher_query(query, self._query_params, resolve_objects=True)
+        # The following is not as elegant as it could be but had to be copied from the
         # version prior to cypher_query with the resolve_objects capability.
-        # It seems that certain calls are only supposed to be focusing to the first 
+        # It seems that certain calls are only supposed to be focusing to the first
         # result item returned (?)
         if results:
             return [n[0] for n in results]
         return []
-        
-        
+
+
 class BaseSet(object):
     """
     Base class for all node sets.
@@ -574,6 +644,7 @@ class NodeSet(BaseSet):
 
         self.filters = []
         self.q_filters = Q()
+        self.relationship_filters = Q()
 
         # used by has()
         self.must_match = {}
@@ -686,6 +757,14 @@ class NodeSet(BaseSet):
 
     def has(self, **kwargs):
         process_has_args(self, kwargs)
+        return self
+
+    def find(self, *args, **kwargs):
+        """
+        Extra filter for find nodes by relationship properties
+        """
+        if args or kwargs:
+            self.relationship_filters = Q(self.relationship_filters & Q(*args, **kwargs))
         return self
 
     def order_by(self, *props):
