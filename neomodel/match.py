@@ -143,8 +143,6 @@ re._alphanum_str = frozenset(
 
 def preprocess_filter_find_args(cls, kwargs):
     # realisation
-    print('preprocess filters find args', kwargs)
-
     key, value = list(kwargs.items())[0]
 
     if len(re.findall(r"__", key)) != 2:
@@ -154,15 +152,12 @@ def preprocess_filter_find_args(cls, kwargs):
     relationship_field = key[0:cuttener]
     key = key[cuttener+2:]
     del cuttener
-    print("rel field : ", relationship_field, " -- ", key)
-
     if not hasattr(cls, relationship_field):
         raise Exception("field does not exists in source fucking idiot")
 
     rel_field = getattr(cls, relationship_field)
     kwargs = {key: value}
     res = process_filter_args(rel_field.definition['model'], kwargs)
-    print('result: ', res)
     return res, rel_field
 
 def process_filter_args(cls, kwargs):
@@ -288,11 +283,8 @@ class QueryBuilder(object):
         return self
 
     def build_relationship_filters(self, ident, filters, source_class):
-        print('Source class : ', source_class)
         if filters is not None and isinstance(filters, QBase):
-            print('In if "1"')
             match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class)
-            print('yay, match and where stmt : ', match_stmt, where_stmt)
             if match_stmt:
                 self._ast['match'] += list(match_stmt)
                 self._ast['where'].append(where_stmt)
@@ -313,8 +305,6 @@ class QueryBuilder(object):
                 rel_ident = rhs_ident.lower()
 
                 matches.add(_rel_helper(ident, ':' + rhs_ident, rel_ident, rel_field.definition['relation_type']))
-                print('rel_ident: ', rel_ident)
-                print('matches :', matches)
 
                 #relationship where statement
                 for prop, op_and_val in filters.items():
@@ -327,7 +317,6 @@ class QueryBuilder(object):
                         statement = '{}.{} {} {{{}}}'.format(rel_ident, prop, op, place_holder)
                         self._query_params[place_holder] = val
                     target.append(statement)
-                    print('target: ', target)
         ret = ' {} '.format(q.connector).join(target)
         if q.negated:
             ret = 'NOT ({})'.format(ret)
@@ -548,8 +537,7 @@ class QueryBuilder(object):
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
 
 
-        print('logs: ', query, self._ast)
-
+        print('logs query: ', query, self._ast)
         return query
 
     def _count(self):
@@ -662,6 +650,12 @@ class NodeSet(BaseSet):
         self.must_match = {}
         self.dont_match = {}
         self.extra_match = {}
+
+    def set_limit(self, limit=200):
+        self.limit = limit
+
+    def set_skip(self, skip=0):
+        self.skip = skip
 
     def _get(self, limit=None, **kwargs):
         self.filter(**kwargs)
