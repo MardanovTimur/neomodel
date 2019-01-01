@@ -541,7 +541,6 @@ class QueryBuilder(object):
         if 'limit' in self._ast:
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
 
-        print('logs query: ', query, self._ast)
         return query
 
     def _count(self):
