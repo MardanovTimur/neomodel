@@ -147,7 +147,7 @@ def preprocess_filter_find_args(cls, kwargs):
 
     relationship_fields = {}
 
-    key, value = len(kwargs.items())[0]
+    key, value = list(kwargs.items())[0]
 
     if len(re.findall(r"__", key)) != 2:
         raise Exception("Not found the double \'__\'")
