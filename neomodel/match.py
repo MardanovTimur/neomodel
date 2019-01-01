@@ -799,9 +799,17 @@ class NodeSet(BaseSet):
         process_has_args(self, kwargs)
         return self
 
-    def find(self, *args, **kwargs):
+    def find_by_edge(self, *args, **kwargs):
         """
         Extra filter for find nodes by relationship properties
+        Example:
+            .find_by_edge(Q(research__ru_name__icontains='value'))
+
+            research - relationship definition in our model of nodeset,
+                or relationship field at simple
+            ru_name - field on edge (defined in relationship_model=in relationship
+                    definition)
+            icontains - search param
         """
         if args or kwargs:
             self.relationship_filters = Q(self.relationship_filters & Q(*args, **kwargs))
