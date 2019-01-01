@@ -294,7 +294,7 @@ class QueryBuilder(object):
             match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class)
             print('yay, match and where stmt : ', match_stmt, where_stmt)
             if match_stmt:
-                self._ast['match'].append(list(match_stmt))
+                self._ast['match'] += list(match_stmt)
                 self._ast['where'].append(where_stmt)
 
     def _parse_q_find_filters(self, ident, q, source_class, matches=set()):
