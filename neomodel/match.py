@@ -275,9 +275,9 @@ class QueryBuilder(object):
     def build_ast(self):
         self.build_source(self.node_set)
 
-        if hasattr(self.node_set, 'skip'):
+        if getattr(self.node_set, 'skip') is not None:
             self._ast['skip'] = self.node_set.skip
-        if hasattr(self.node_set, 'limit'):
+        if getattr(self.node_set, 'limit') is not None:
             self._ast['limit'] = self.node_set.limit
 
         return self
