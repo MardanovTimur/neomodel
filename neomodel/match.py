@@ -653,9 +653,11 @@ class NodeSet(BaseSet):
 
     def set_limit(self, limit=200):
         self.limit = limit
+        return self
 
     def set_skip(self, skip=0):
         self.skip = skip
+        return self
 
     def _get(self, limit=None, **kwargs):
         self.filter(**kwargs)
