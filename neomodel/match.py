@@ -299,7 +299,7 @@ class QueryBuilder(object):
         target = []
         for child in q.children:
             if isinstance(child, QBase):
-                q_childs = self._parse_q_filters(ident, child, source_class)
+                q_childs = self._parse_q_find_filters(ident, child, source_class)
                 if child.connector == Q.OR:
                     q_childs = "(" + q_childs + ")"
                 target.append(q_childs)
