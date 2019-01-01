@@ -275,11 +275,10 @@ class QueryBuilder(object):
     def build_ast(self):
         self.build_source(self.node_set)
 
-        if getattr(self.node_set, 'skip') is not None:
+        if getattr(self.node_set, 'skip', None) is not None:
             self._ast['skip'] = self.node_set.skip
-        if getattr(self.node_set, 'limit') is not None:
+        if getattr(self.node_set, 'limit', None) is not None:
             self._ast['limit'] = self.node_set.limit
-
         return self
 
     def build_relationship_filters(self, ident, filters, source_class):
