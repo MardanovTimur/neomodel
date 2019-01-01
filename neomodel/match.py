@@ -297,12 +297,11 @@ class QueryBuilder(object):
                 self._ast['match'].append(list(match_stmt))
                 self._ast['where'].append(where_stmt)
 
-    def _parse_q_find_filters(self, ident, q, source_class):
+    def _parse_q_find_filters(self, ident, q, source_class, matches=set()):
         target = []
-        matches = set()
         for child in q.children:
             if isinstance(child, QBase):
-                q_childs = self._parse_q_find_filters(ident, child, source_class)
+                matches, q_childs = self._parse_q_find_filters(ident, child, source_class, matches)
                 if child.connector == Q.OR:
                     q_childs = "(" + q_childs + ")"
                 target.append(q_childs)
