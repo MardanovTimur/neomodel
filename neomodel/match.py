@@ -145,8 +145,6 @@ def preprocess_filter_find_args(cls, kwargs):
     # realisation
     print('preprocess filters find args', kwargs)
 
-    relationship_fields = {}
-
     key, value = list(kwargs.items())[0]
 
     if len(re.findall(r"__", key)) != 2:
@@ -161,11 +159,11 @@ def preprocess_filter_find_args(cls, kwargs):
     if not hasattr(cls, relationship_field):
         raise Exception("field does not exists in source fucking idiot")
 
-    other_class = getattr(cls, relationship_field).definition['model']
+    rel_field = getattr(cls, relationship_field)
     kwargs = {key: value}
-    res = process_filter_args(other_class, kwargs)
+    res = process_filter_args(rel_field.definition['model'], kwargs)
     print('result: ', res)
-    return res
+    return res, rel_field
 
 def process_filter_args(cls, kwargs):
     """
@@ -294,12 +292,14 @@ class QueryBuilder(object):
         if filters is not None and isinstance(filters, QBase):
             print('In if "1"')
             match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class)
+            print('yay, match and where stmt : ', match_stmt, where_stmt)
             if match_stmt:
-                self._ast['match'].append(match_stmt)
+                self._ast['match'].append(list(match_stmt))
                 self._ast['where'].append(where_stmt)
 
     def _parse_q_find_filters(self, ident, q, source_class):
         target = []
+        matches = set()
         for child in q.children:
             if isinstance(child, QBase):
                 q_childs = self._parse_q_find_filters(ident, child, source_class)
@@ -308,21 +308,28 @@ class QueryBuilder(object):
                 target.append(q_childs)
             else:
                 kwargs = {child[0]: child[1]}
-                filters = preprocess_filter_find_args(source_class, kwargs)
+                filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
+
+                rhs_ident = rel_field._raw_class
+                rel_ident = rhs_ident.lower()
+
+                matches.add(_rel_helper(ident, ':' + rhs_ident, rel_ident, rel_field.definition['relation_type']))
+
+                #relationship where statement
                 for prop, op_and_val in filters.items():
                     op, val = op_and_val
                     if op in _UNARY_OPERATORS:
                         # unary operators do not have a parameter
-                        statement = '{}.{} {}'.format(ident, prop, op)
+                        statement = '{}.{} {}'.format(rel_ident, prop, op)
                     else:
-                        place_holder = self._register_place_holder(ident + '_' + prop)
-                        statement = '{}.{} {} {{{}}}'.format(ident, prop, op, place_holder)
+                        place_holder = self._register_place_holder(rel_ident + '_' + prop)
+                        statement = '{}.{} {} {{{}}}'.format(rel_ident, prop, op, place_holder)
                         self._query_params[place_holder] = val
                     target.append(statement)
         ret = ' {} '.format(q.connector).join(target)
         if q.negated:
             ret = 'NOT ({})'.format(ret)
-        return ret
+        return matches, ret
 
     def build_source(self, source):
         if isinstance(source, (Traversal, TraversalRelationships)):
