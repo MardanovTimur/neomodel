@@ -276,7 +276,7 @@ class QueryBuilder(object):
     def build_ast(self):
         self.build_source(self.node_set)
 
-        if self.node_set._extra_queries['need']:
+        if hasattr(self.node_set, '_extra_queries') and self.node_set._extra_queries['need']:
             self.build_extra_ast(self.node_set._extra_queries)
 
         if getattr(self.node_set, 'skip', None) is not None:
