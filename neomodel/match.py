@@ -841,6 +841,10 @@ class NodeSet(BaseSet):
 
     def append_relationship(self, field):
         """Field must be relationship definition
+        Just append relationship to model. Without extra queries:
+            Example:
+                coffee.append_relationship('sugar') ->
+            MATCH (coffee:Coffee), ((coffee)-[sugar:SugarCoffeeRel]-(sugar_node:Sugar)) ...
         """
         field = getattr(self.source_class, field, None)
         if field is None or not hasattr(field, 'definition'):
@@ -851,7 +855,7 @@ class NodeSet(BaseSet):
         self._extra_queries['match'].add(
             _rel_helper(
                 ident,
-                ':' + rhs_ident,
+                "{type}_node:{label}".format(type=rel_ident, label=rhs_ident),
                 rel_ident,
                 field.definition['relation_type']))
         self._extra_queries['need'] = True
