@@ -222,12 +222,13 @@ def process_has_args(builder, kwargs):
     rel_definitions = cls.defined_properties(properties=False, rels=True, aliases=False)
 
     for key, value in kwargs.items():
-        if key not in rel_definitions:
-            raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
+        if key != 'operation':
+            if key not in rel_definitions:
+                raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
 
-        rel_definitions[key]._lookup_node_class()
-        definition = rel_definitions[key].definition
-        update_matches(value, builder, key, definition, **kwargs)
+            rel_definitions[key]._lookup_node_class()
+            definition = rel_definitions[key].definition
+            update_matches(value, builder, key, definition, **kwargs)
 
 
 @singledispatch
