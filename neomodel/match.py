@@ -227,11 +227,11 @@ def process_has_args(builder, kwargs):
 
         rel_definitions[key]._lookup_node_class()
         definition = rel_definitions[key].definition
-        update_matches(value, builder, key, definition)
+        update_matches(value, builder, key, definition, **kwargs)
 
 
 @singledispatch
-def update_matches(argument, builder, key, definition):
+def update_matches(argument, builder, key, definition, **kwargs):
     raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
 
 
@@ -255,7 +255,7 @@ def _generate_label_sn(type, **kwargs):
 
 
 @update_matches.register(bool)
-def _um_register(argument, builder, key, definition):
+def _um_register(argument, builder, key, definition, **kwargs):
     """
     default match
     """
@@ -446,6 +446,8 @@ class QueryBuilder(object):
                                              'source_ident': ident,
                                              'label': label,
                                              'value': value['value']})
+                    if stmt and value['operation'] == ' OR ':
+                        stmt = [value['operation'].join(stmt), ]
                 else:
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
@@ -820,8 +822,14 @@ class NodeSet(BaseSet):
         return self
 
     def has(self, **kwargs):
+        """
+        Nodeset, object, bool types
+        Supports operation
+         & or |
+        """
         process_has_args(self, kwargs)
         return self
+
 
     def find_by_edge(self, *args, **kwargs):
         """
@@ -905,7 +913,7 @@ class NodeSet(BaseSet):
 
 @update_matches.register(NodeSet)
 @update_matches.register(StructuredNode)
-def _um_register(argument, builder, key, definition):
+def _um_register(argument, builder, key, definition, **kwargs):
     """
     include type of finding object
     """
@@ -913,6 +921,7 @@ def _um_register(argument, builder, key, definition):
         'definition': definition,
         'type': type(argument),
         'value': argument,
+        'operation': ' OR ' if 'operation' in kwargs and kwargs['operation'] == '|' else ' AND ',
     }
 
 
