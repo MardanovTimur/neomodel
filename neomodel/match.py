@@ -469,6 +469,10 @@ class QueryBuilder(object):
         self._place_holder_registry[key] = self._place_holder_registry.get(key, 0) + 1
         return key + '_' + str(self._place_holder_registry[key])
 
+    def _where_query(self, ident, q, source_class):
+        ret = self._parse_q_filters(ident, q, source_class)
+        return ret, self._query_params
+
     def _parse_q_filters(self, ident, q, source_class):
         target = []
         for child in q.children:
