@@ -566,8 +566,14 @@ class QueryBuilder(object):
         self._ast['return'] = 'count({})'.format(self._ast['return'])
         # drop order_by, results in an invalid query
         self._ast.pop('order_by', None)
+        # drop limit & offset
+        limit = self._ast.pop('limit', None)
+        skip =  self._ast.pop('skip', None)
         query = self.build_query()
         results, _ = db.cypher_query(query, self._query_params)
+        # update it
+        self._ast['limit'] = limit
+        self._ast['skip'] = skip
         return int(results[0][0])
 
     def _contains(self, node_id):
