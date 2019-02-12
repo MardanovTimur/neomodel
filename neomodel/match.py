@@ -157,12 +157,7 @@ def preprocess_filter_find_args(cls, kwargs):
 
     rel_field = getattr(cls, relationship_field)
     kwargs = {key: value}
-
-    model_label = rel_field.definition['model']
-    find = model_label.rfind('.')
-    if find != -1:
-        model_label = model_label[find+1:]
-    res = process_filter_args(model_label, kwargs)
+    res = process_filter_args(rel_field.definition['model'], kwargs)
     return res, rel_field
 
 
