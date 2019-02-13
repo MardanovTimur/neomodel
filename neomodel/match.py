@@ -314,7 +314,7 @@ class QueryBuilder(object):
                 kwargs = {child[0]: child[1]}
                 filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
 
-                rhs_ident = rel_field._raw_class
+                rhs_ident = rel_field._raw_class.split('.')[-1]
                 rel_ident = rhs_ident.lower()
 
                 matches.add(
@@ -869,7 +869,7 @@ class NodeSet(BaseSet):
         if field is None or not hasattr(field, 'definition'):
             raise NeomodelException("Field {} not found in source_class".format(field))
         ident = self.source.__label__.lower()
-        rhs_ident = field._raw_class
+        rhs_ident = field._raw_class.split('.')[-1]
         rel_ident = rhs_ident.lower()
         self._extra_queries['match'].add(
             _rel_helper(
