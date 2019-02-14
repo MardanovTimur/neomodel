@@ -222,7 +222,7 @@ class Database():
                                          retry_on_session_expire=False)
             raise
 
-        if os.environ.get('NEOMODEL_CYPHER_DEBUG', False):
+        if os.environ.get('NEOMODEL_CYPHER_DEBUG', '0') == '1':
             logger.debug("query: " + query + "\nparams: " + repr(params) + "\ntook: %.2gs\n" % (end - start))
 
         return results, meta
