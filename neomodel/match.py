@@ -687,8 +687,8 @@ class NodeSet(BaseSet):
         # lazy query builds
         # Fields: return, match, where
         self._extra_queries = {
-            'match': set(),
-            'where': set(),
+            'match': [],
+            'where': [],
             'need': False,
         }
         # filters
@@ -871,7 +871,7 @@ class NodeSet(BaseSet):
         ident = self.source.__label__.lower()
         rhs_ident = field._raw_class.split('.')[-1]
         rel_ident = rhs_ident.lower()
-        self._extra_queries['match'].add(
+        self._extra_queries['match'].append(
             _rel_helper(
                 ident,
                 "{type}_node:{label}".format(type=rel_ident, label=rhs_ident),
