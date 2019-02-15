@@ -297,12 +297,13 @@ class QueryBuilder(object):
 
     def build_relationship_filters(self, ident, filters, source_class):
         if filters is not None and isinstance(filters, QBase):
-            match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class)
+            match_stmt, where_stmt = self._parse_q_find_filters(ident, filters, source_class, [])
+            match_stmt = set(match_stmt)
             if match_stmt:
                 self._ast['match'] += list(match_stmt)
                 self._ast['where'].append(where_stmt)
 
-    def _parse_q_find_filters(self, ident, q, source_class, matches=set()):
+    def _parse_q_find_filters(self, ident, q, source_class, matches=[]):
         target = []
         for child in q.children:
             if isinstance(child, QBase):
@@ -317,7 +318,7 @@ class QueryBuilder(object):
                 rhs_ident = rel_field._raw_class.split('.')[-1]
                 rel_ident = rhs_ident.lower()
 
-                matches.add(
+                matches.append(
                     _rel_helper(
                         ident,
                         ':' + rhs_ident,
