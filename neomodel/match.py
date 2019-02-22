@@ -869,7 +869,10 @@ class NodeSet(BaseSet):
         field = getattr(self.source_class, field, None)
         if field is None or not hasattr(field, 'definition'):
             raise NeomodelException("Field {} not found in source_class".format(field))
-        ident = self.source.__label__.lower()
+        if isinstance(self.source, Traversal):
+            ident = self.source.target_class.__label__.lower()
+        else:
+            ident = self.source.__label__.lower()
         rhs_ident = field._raw_class.split('.')[-1]
         rel_ident = rhs_ident.lower()
         self._extra_queries['match'].append(
