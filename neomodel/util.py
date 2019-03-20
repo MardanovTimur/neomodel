@@ -3,15 +3,17 @@ import os
 import sys
 import time
 import warnings
+
 from threading import local
 from functools import singledispatch
 from datetime import datetime, date
+from dateutil.tz import tzlocal
 
 from neo4j.v1 import GraphDatabase, basic_auth, CypherError, SessionError, Node
 from neomodel.properties import DateProperty, DateTimeProperty
 
 from . import config
-from .exceptions import UniqueProperty, ConstraintValidationFailed,  ModelDefinitionMismatch
+from .exceptions import UniqueProperty, ConstraintValidationFailed, ModelDefinitionMismatch
 
 if sys.version_info >= (3, 0):
     from urllib.parse import urlparse
@@ -149,11 +151,11 @@ class Database():
                     #  Nodes to be resolved to native objects
                     resolved_object = a_result_attribute[1]
 
-                    if type(a_result_attribute[1]) is Node:
-                        resolved_object = self._NODE_CLASS_REGISTRY[frozenset(a_result_attribute[1].labels)].inflate(
-                            a_result_attribute[1])
+                    if isinstance(a_result_attribute[1], Node):
+                        resolved_object = self._NODE_CLASS_REGISTRY[frozenset(
+                            a_result_attribute[1].labels)].inflate(a_result_attribute[1])
 
-                    if type(a_result_attribute[1]) is list:
+                    if isinstance(a_result_attribute[1], list):
                         resolved_object = self._object_resolution([a_result_attribute[1]])
 
                     result_list[a_result_item[0]][a_result_attribute[0]] = resolved_object
@@ -166,10 +168,14 @@ class Database():
 
         return result_list
 
-
-
     @ensure_connection
-    def cypher_query(self, query, params=None, handle_unique=True, retry_on_session_expire=False, resolve_objects=False):
+    def cypher_query(
+            self,
+            query,
+            params=None,
+            handle_unique=True,
+            retry_on_session_expire=False,
+            resolve_objects=False):
         """
         Runs a query on the database and returns a list of results and their headers.
 
@@ -226,7 +232,14 @@ class Database():
             raise
 
         if os.environ.get('NEOMODEL_CYPHER_DEBUG', '0') == '1':
-            logger.debug("query: " + query + "\nparams: " + repr(params) + "\ntook: %.2gs\n" % (end - start))
+            logger.debug(
+                "query: " +
+                query +
+                "\nparams: " +
+                repr(params) +
+                "\ntook: %.2gs\n" %
+                (end -
+                 start))
 
         return results, meta
 
@@ -308,16 +321,23 @@ def _get_node_properties(node):
 def auto_update_field(field, node, key):
     raise NotImplementedError("{} not implemented yet.".format(type(field)))
 
+
 @auto_update_field.register(DateTimeProperty)
 def auf_datetimeproperty(field, node, key):
-    setattr(node, key, datetime.utcnow().replace(tzinfo=pytz.utc))
+    setattr(node, key, datetime.now(tzlocal()))
     return node
 
+
+@auto_update_field.register(DateProperty)
+def auf_datetimeproperty(field, node, key):
+    setattr(node, key, datetime.now(tzlocal()).date())
+    return node
+
+
 def auto_update(node):
-    for k, v in self.defined_properties(aliases=False, rels=False).items():
-        if isinstance(node, (DateProperty, DateTimeProperty)):
-            print('found it')
-            auto_update_field(v, node, k)
+    """ Auto update hook (for update magic dates in models)
+    """
+    for k, v in node.defined_properties(aliases=False, rels=False).items():
+        if isinstance(v, (DateProperty, DateTimeProperty)):
             if v.auto_update:
-
-
+                auto_update_field(v, node, k)

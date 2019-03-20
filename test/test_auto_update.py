@@ -16,16 +16,19 @@ class Car(StructuredNode):
     date_auto_update = DateProperty(auto_update=True)
 
     datetime = DateTimeProperty(default_now=True)
-    datetime_auto_update = DateTimeProperty(auto_update=True)
+    datetime_auto_update = DateTimeProperty(default_now=True, auto_update=True)
 
 
 def test_auto_update():
     c = Car(name='asasdasdasd')
     print(c.uid)
     c.save()
+    print('First: ', c.date_auto_update)
+    print('First_ datateim: ', c.datetime_auto_update)
     c.name = 'asdasdassssss'
     c.save()
-    print(c.defined_properties(aliases=False, rels=False))
+    print('Second: ', c.date_auto_update)
+    print('Second datetime: ', c.datetime_auto_update)
 
 
 if __name__ == "__main__":

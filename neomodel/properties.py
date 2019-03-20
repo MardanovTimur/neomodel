@@ -462,7 +462,7 @@ class DateTimeProperty(DateProperty, Property):
         if default_now:
             if 'default' in kwargs:
                 raise ValueError('too many defaults')
-            kwargs['default'] = lambda: datetime.utcnow().replace(tzinfo=pytz.utc)
+            kwargs['default'] = lambda: datetime.now(tzlocal())
         super(DateTimeProperty, self).__init__(**kwargs)
 
     @validator

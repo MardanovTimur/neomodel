@@ -38,8 +38,9 @@ def drop_constraints(quiet=True, stdout=None):
     for constraint in results:
         db.cypher_query('DROP ' + constraint[0])
         match = pattern.search(constraint[0])
-        stdout.write(''' - Droping unique constraint and index on label {} with property {}.\n'''.format(
-            match.group(1), match.group(2)))
+        stdout.write(
+            ''' - Droping unique constraint and index on label {} with property {}.\n'''.format(
+                match.group(1), match.group(2)))
     stdout.write("\n")
 
 
@@ -109,8 +110,9 @@ def install_labels(cls, quiet=True, stdout=None):
 
         elif property.unique_index:
             if not quiet:
-                stdout.write(' + Creating unique constraint for {} on label {} for class {}.{}\n'.format(
-                    name, cls.__label__, cls.__module__, cls.__name__))
+                stdout.write(
+                    ' + Creating unique constraint for {} on label {} for class {}.{}\n'.format(
+                        name, cls.__label__, cls.__module__, cls.__name__))
 
             db.cypher_query("CREATE CONSTRAINT "
                             "on (n:{}) ASSERT n.{} IS UNIQUE; ".format(
@@ -276,8 +278,11 @@ class StructuredNode(NodeBase, UUID):
         """
         query_params = dict(merge_params=merge_params)
         n_merge = "n:{} {{{}}}".format(
-            ":".join(cls.inherited_labels()),
-            ", ".join("{0}: params.create.{0}".format(getattr(cls, p).db_property or p) for p in cls.__required_properties__))
+            ":".join(
+                cls.inherited_labels()), ", ".join(
+                "{0}: params.create.{0}".format(
+                    getattr(
+                        cls, p).db_property or p) for p in cls.__required_properties__))
         if relationship is None:
             # create "simple" unwind query
             query = "UNWIND {{merge_params}} as params\n MERGE ({})\n ".format(n_merge)
@@ -315,8 +320,10 @@ class StructuredNode(NodeBase, UUID):
 
     @classmethod
     def category(cls):
-        raise NotImplementedError("Category was deprecated and has now been removed, "
-                                  "the functionality is now achieved using the {}.nodes attribute".format(cls.__name__))
+        raise NotImplementedError(
+            "Category was deprecated and has now been removed, "
+            "the functionality is now achieved using the {}.nodes attribute".format(
+                cls.__name__))
 
     @classmethod
     def create(cls, *props, **kwargs):
@@ -377,10 +384,10 @@ class StructuredNode(NodeBase, UUID):
         # build merge query, make sure to update only explicitly specified properties
         create_or_update_params = []
         for specified, deflated in [(p, cls.deflate(p, skip_empty=True)) for p in props]:
-            create_or_update_params.append({"create": deflated,
-                                            "update": dict((k, v) for k, v in deflated.items() if k in specified)})
-        query, params = cls._build_merge_query(create_or_update_params, update_existing=True, relationship=relationship,
-                                               lazy=lazy)
+            create_or_update_params.append({"create": deflated, "update": dict(
+                (k, v) for k, v in deflated.items() if k in specified)})
+        query, params = cls._build_merge_query(
+            create_or_update_params, update_existing=True, relationship=relationship, lazy=lazy)
 
         if 'streaming' in kwargs:
             warnings.warn('streaming is not supported by bolt, please remove the kwarg',
@@ -538,14 +545,6 @@ class StructuredNode(NodeBase, UUID):
         # create or update instance node
         if hasattr(self, 'id'):
             auto_update(self)
-            # update
-            #  if hasattr(self, 'updated_at'):
-            #      if isinstance(self.updated_at, datetime.datetime):
-            #          self.__properties__['updated_at'] = datetime.datetime.now()
-            #          self.updated_at = datetime.datetime.now()
-            #      elif isinstance(self.updated_at, datetime.date):
-            #          self.__properties__['updated_at'] = datetime.date.today()
-            #          self.updated_at = datetime.date.today()
             params = self.deflate(self.__properties__, self)
             query = "MATCH (n) WHERE id(n)={self} \n"
             query += "\n".join(["SET n.{} = {{{}}}".format(key, key) + "\n"
