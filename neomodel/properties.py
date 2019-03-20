@@ -6,9 +6,11 @@ import re
 import uuid
 import warnings
 import numpy as np
-from datetime import date, datetime
-
 import pytz
+
+from datetime import date, datetime
+# for local timezone
+from dateutil.tz import tzlocal
 
 from neomodel import config
 from neomodel.exceptions import InflateError, DeflateError, RequiredProperty
@@ -217,7 +219,7 @@ class NormalizedProperty(Property):
         raise NotImplementedError('Specialize normalize method')
 
 
-## TODO remove this with the next major release
+# TODO remove this with the next major release
 def _warn_NormalProperty_renamed():
     warnings.warn(
         'The class NormalProperty was renamed to NormalizedProperty. '
@@ -290,6 +292,7 @@ class StringProperty(NormalizedProperty):
                     value ``None`` is used, any string is valid.
     :type choices: Any type that can be used to initiate a :class:`dict`.
     """
+
     def __init__(self, choices=None, **kwargs):
         super(StringProperty, self).__init__(**kwargs)
 
@@ -357,7 +360,8 @@ class ArrayProperty(Property):
 
             for ilegal_attr in ['default', 'index', 'unique_index', 'required']:
                 if getattr(base_property, ilegal_attr, None):
-                    raise ValueError('ArrayProperty base_property cannot have "{}" set'.format(ilegal_attr))
+                    raise ValueError(
+                        'ArrayProperty base_property cannot have "{}" set'.format(ilegal_attr))
 
         self.base_property = base_property
 
@@ -423,6 +427,15 @@ class DateProperty(Property):
     """
     form_field_class = 'DateField'
 
+    def __init__(self, auto_update=False, **kwargs):
+        """
+        Args:
+            auto_update (bool), default = `False`: auto update time,
+                when object is updated
+        """
+        self.auto_update = auto_update
+        super(DateProperty, self).__init__(**kwargs)
+
     @validator
     def inflate(self, value):
         return datetime.strptime(unicode(value), "%Y-%m-%d").date()
@@ -435,7 +448,7 @@ class DateProperty(Property):
         return value.isoformat()
 
 
-class DateTimeProperty(Property):
+class DateTimeProperty(DateProperty, Property):
     """ A property representing a :class:`datetime.datetime` object as
         unix epoch.
 
@@ -450,7 +463,6 @@ class DateTimeProperty(Property):
             if 'default' in kwargs:
                 raise ValueError('too many defaults')
             kwargs['default'] = lambda: datetime.utcnow().replace(tzinfo=pytz.utc)
-
         super(DateTimeProperty, self).__init__(**kwargs)
 
     @validator
@@ -460,7 +472,7 @@ class DateTimeProperty(Property):
         except ValueError:
             raise ValueError("Float or integer expected, got {0} can't inflate to "
                              "datetime.".format(type(value)))
-        return datetime.utcfromtimestamp(epoch).replace(tzinfo=pytz.utc)
+        return datetime.fromtimestamp(epoch, tzlocal())
 
     @validator
     def deflate(self, value):
@@ -483,6 +495,7 @@ class JSONProperty(Property):
 
     The structure will be inflated when a node is retrieved.
     """
+
     def __init__(self, *args, **kwargs):
         super(JSONProperty, self).__init__(*args, **kwargs)
 
@@ -532,6 +545,7 @@ class AliasProperty(property, Property):
     """
     Alias another existing property
     """
+
     def __init__(self, to=None):
         """
         Create new alias
@@ -565,6 +579,7 @@ class UniqueIdProperty(Property):
     """
     A unique identifier, a randomly generated uid (uuid4) with a unique index
     """
+
     def __init__(self, **kwargs):
         for item in ['required', 'unique_index', 'index', 'default']:
             if item in kwargs:

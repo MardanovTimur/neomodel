@@ -7,8 +7,20 @@ from uuid import uuid4
 from neomodel import config
 from neomodel.exceptions import DoesNotExist
 from neomodel.hooks import hooks
-from neomodel.properties import Property, PropertyManager, StringProperty
-from neomodel.util import Database, classproperty, _UnsavedNode, _get_node_properties
+from neomodel.properties import (
+    Property,
+    PropertyManager,
+    StringProperty,
+    DateProperty,
+    DateTimeProperty,
+)
+from neomodel.util import (
+    Database,
+    classproperty,
+    _UnsavedNode,
+    _get_node_properties,
+    auto_update,
+)
 
 db = Database()
 
@@ -175,7 +187,7 @@ class NodeMeta(type):
             if config.AUTO_INSTALL_LABELS:
                 install_labels(cls)
             db._NODE_CLASS_REGISTRY[frozenset(cls.inherited_labels())] = cls
-            
+
         return cls
 
 
@@ -184,6 +196,9 @@ NodeBase = NodeMeta('NodeBase', (PropertyManager,), {'__abstract_node__': True})
 
 class UUID(object):
     uid = StringProperty(unique_index=True, default=uuid4)
+
+    def __hash__(self):
+        return hash(self.uid)
 
 
 class StructuredNode(NodeBase, UUID):
@@ -522,14 +537,15 @@ class StructuredNode(NodeBase, UUID):
         """
         # create or update instance node
         if hasattr(self, 'id'):
+            auto_update(self)
             # update
-            if hasattr(self, 'updated_at'):
-                if isinstance(self.updated_at, datetime.datetime):
-                    self.__properties__['updated_at'] = datetime.datetime.now()
-                    self.updated_at = datetime.datetime.now()
-                elif isinstance(self.updated_at, datetime.date):
-                    self.__properties__['updated_at'] = datetime.date.today()
-                    self.updated_at = datetime.date.today()
+            #  if hasattr(self, 'updated_at'):
+            #      if isinstance(self.updated_at, datetime.datetime):
+            #          self.__properties__['updated_at'] = datetime.datetime.now()
+            #          self.updated_at = datetime.datetime.now()
+            #      elif isinstance(self.updated_at, datetime.date):
+            #          self.__properties__['updated_at'] = datetime.date.today()
+            #          self.updated_at = datetime.date.today()
             params = self.deflate(self.__properties__, self)
             query = "MATCH (n) WHERE id(n)={self} \n"
             query += "\n".join(["SET n.{} = {{{}}}".format(key, key) + "\n"

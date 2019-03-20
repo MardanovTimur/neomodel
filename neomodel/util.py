@@ -4,8 +4,11 @@ import sys
 import time
 import warnings
 from threading import local
+from functools import singledispatch
+from datetime import datetime, date
 
 from neo4j.v1 import GraphDatabase, basic_auth, CypherError, SessionError, Node
+from neomodel.properties import DateProperty, DateTimeProperty
 
 from . import config
 from .exceptions import UniqueProperty, ConstraintValidationFailed,  ModelDefinitionMismatch
@@ -299,3 +302,22 @@ def _get_node_properties(node):
     # 1.5.x and older have it as `properties`
     else:
         return node.properties
+
+
+@singledispatch
+def auto_update_field(field, node, key):
+    raise NotImplementedError("{} not implemented yet.".format(type(field)))
+
+@auto_update_field.register(DateTimeProperty)
+def auf_datetimeproperty(field, node, key):
+    setattr(node, key, datetime.utcnow().replace(tzinfo=pytz.utc))
+    return node
+
+def auto_update(node):
+    for k, v in self.defined_properties(aliases=False, rels=False).items():
+        if isinstance(node, (DateProperty, DateTimeProperty)):
+            print('found it')
+            auto_update_field(v, node, k)
+            if v.auto_update:
+
+
