@@ -199,9 +199,6 @@ NodeBase = NodeMeta('NodeBase', (PropertyManager,), {'__abstract_node__': True})
 class UUID(object):
     uid = StringProperty(unique_index=True, default=uuid4)
 
-    def __hash__(self):
-        return hash(self.uid)
-
 
 class StructuredNode(NodeBase, UUID):
     """
@@ -210,7 +207,6 @@ class StructuredNode(NodeBase, UUID):
     If you want to create your own abstract classes set:
         __abstract_node__ = True
     """
-
     # static properties
 
     __abstract_node__ = True
@@ -241,6 +237,9 @@ class StructuredNode(NodeBase, UUID):
 
     def __str__(self):
         return repr(self.__properties__)
+
+    def __hash__(self):
+        return hash(self.uid)
 
     # dynamic properties
 
