@@ -63,7 +63,6 @@ def test_has_functionality():
     cars = Car.nodes.has(owner=users)
     cars = cars.has(item=item)
     print(cars.all())
-    #  print(NodeSet(User.nodes.filter(username__in=['Jack', 'Sasha']).car).filter().all())
 
 if __name__ == "__main__":
     config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL',

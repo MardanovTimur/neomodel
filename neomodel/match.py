@@ -458,7 +458,6 @@ class QueryBuilder(object):
                     self._ast['match'] += match
                     self._ast['where'] += where
                     self._query_params = {**self._query_params, **query_params}
-                    print(self._ast)
                 else:
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
