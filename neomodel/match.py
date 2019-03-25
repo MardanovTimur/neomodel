@@ -46,6 +46,8 @@ def _rel_helper(
     :param relation_properties: dictionary of relationship properties to match
     :returns: string
     """
+    if kwargs.get('reverse'):
+        direction = -direction
 
     if direction == OUTGOING:
         stmt = '-{0}->'
@@ -251,13 +253,15 @@ def generate_label(type, **kwargs):
 
 @generate_label.register(StructuredNode)
 def _generate_label_sn(type, **kwargs):
+    self = kwargs['self']
     label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
     where_relation = _rel_helper(
         lhs=kwargs['source_ident'],
         rhs=label,
         ident='',
         **kwargs['val'])
-    return [], [where_relation, ], {}
+    self._ast['where'] = [where_relation, ]
+    return self
 
 
 @update_matches.register(bool)
@@ -447,17 +451,13 @@ class QueryBuilder(object):
                 label = ':' + val['node_class'].__label__
                 if attr == 'extra_match':
                     # insert value definitions in match
-                    match, where, query_params = generate_label(value['value'],
-                                          **{'val': val,
-                                             'source_ident': ident,
-                                             'label': label,
-                                             'value': value['value'],
-                                             'nodeset_origin': node_set})
-                    #  if stmt and value['operation'] == ' OR ':
-                    #      stmt = [value['operation'].join(stmt), ]
-                    self._ast['match'] += match
-                    self._ast['where'] += where
-                    self._query_params = {**self._query_params, **query_params}
+                    generate_label(value['value'],
+                                   **{'val': val,
+                                      'source_ident': ident,
+                                      'label': label,
+                                      'value': value['value'],
+                                      'nodeset_origin': node_set,
+                                      'self': self})
                 else:
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
@@ -722,8 +722,8 @@ class NodeSet(BaseSet):
         self.extra_match = {}
 
     def to_q_filters(self, filters):
-        return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}), \
-                self.filters.items(), Q())
+        return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}),
+                      self.filters.items(), Q())
 
     def set_limit(self, limit=200):
         """
@@ -963,6 +963,7 @@ def _um_register(argument, builder, key, definition, **kwargs):
 @generate_label.register(tuple)
 @generate_label.register(list)
 def _generate_label_iterable_collections(type, **kwargs):
+    self = kwargs['self']
     # if in `has()` argument type is list or tuple
     labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
     where_relation = [_rel_helper(
@@ -970,26 +971,39 @@ def _generate_label_iterable_collections(type, **kwargs):
         rhs=label,
         ident='',
         **kwargs['val']) for label in labels]
-    return [], where_relation, {}
+
+    # add where
+    self._ast['where'] += [where_relation, ]
+    return self
 
 
 @generate_label.register(NodeSet)
 def _generate_label_ns(type, **kwargs):
     # if in `has()` argument type is `NodeSet`
     # query_params, build_query()
+    self = kwargs['self']
     inner_query_builder = type.query_builder
     # where `has()` query
     where_query = inner_query_builder.build_query_build_where(where=False)
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
-    where_relation = _rel_helper(
-        lhs=kwargs['source_ident'],
-        rhs=inner_query_builder._ast['match'][0].strip('(').strip(')'),
+    match_relation = _rel_helper(
+        rhs=kwargs['source_ident'],
+        lhs=inner_query_builder._ast['match'][0].strip('(').strip(')'),
+        reverse=True,
         **kwargs['val'])
-    return [where_relation, ], \
-           [where_query, ], \
-           inner_query_builder._query_params
+
+    # add lookup
+    self._ast.setdefault('lookup', "")
+    self._ast['lookup'] += inner_query_builder._ast.get('lookup', "")
+    # add connection
+    self._ast['match'] += [match_relation, ]
+    # add where
+    if where_query:
+        self._ast['where'] += [where_query, ]
+    self._query_params = {**self._query_params, **inner_query_builder._query_params}
+    return self
 
 
 class Traversal(BaseSet):
