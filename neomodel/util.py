@@ -230,7 +230,6 @@ class Database():
                                          handle_unique=handle_unique,
                                          retry_on_session_expire=False)
             raise
-
         if os.environ.get('NEOMODEL_CYPHER_DEBUG', '0') == '1':
             logger.debug(
                 "query: " +
@@ -341,3 +340,6 @@ def auto_update(node):
         if isinstance(v, (DateProperty, DateTimeProperty)):
             if v.auto_update:
                 auto_update_field(v, node, k)
+
+def get_rhs_ident(rel_field):
+    return rel_field._raw_class.split('.')[-1]

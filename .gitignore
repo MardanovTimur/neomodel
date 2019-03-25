@@ -15,3 +15,5 @@ development.env
 .ropeproject
 \#*\#
 .eggs
+env
+tags

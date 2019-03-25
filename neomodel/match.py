@@ -1,11 +1,13 @@
 # encoding=utf-8
+import inspect
+import re
+
 from .core import StructuredNode, db
 from .properties import AliasProperty
 from .exceptions import MultipleNodesReturned, NeomodelException
 from .match_q import Q, QBase
-import inspect
-import re
-from functools import singledispatch
+from functools import singledispatch, reduce
+from .util import get_rhs_ident
 
 OUTGOING, INCOMING, EITHER = 1, -1, 0
 
@@ -226,8 +228,11 @@ def process_has_args(builder, kwargs):
             if key not in rel_definitions:
                 raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
 
+            # initialize lookup node class of `key` field from source_class
             rel_definitions[key]._lookup_node_class()
+            # get `key` definition from field
             definition = rel_definitions[key].definition
+            # set parameters for build class, for create relationship query
             update_matches(value, builder, key, definition, **kwargs)
 
 
@@ -252,7 +257,7 @@ def _generate_label_sn(type, **kwargs):
         rhs=label,
         ident='',
         **kwargs['val'])
-    return [where_relation, ]
+    return [], [where_relation, ], {}
 
 
 @update_matches.register(bool)
@@ -286,14 +291,12 @@ class QueryBuilder(object):
             self._ast['limit'] = self.node_set.limit
         return self
 
-
     def build_extra_ast(self, extra):
         quote = ','
         if extra['match']:
             self._ast['match'] += list(extra['match'])
         if extra.get('return') is not None:
             self._ast['return'] = extra['return']
-
 
     def build_relationship_filters(self, ident, filters, source_class):
         if filters is not None and isinstance(filters, QBase):
@@ -315,7 +318,7 @@ class QueryBuilder(object):
                 kwargs = {child[0]: child[1]}
                 filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
 
-                rhs_ident = rel_field._raw_class.split('.')[-1]
+                rhs_ident = get_rhs_ident(rel_field)
                 rel_ident = rhs_ident.lower()
 
                 matches.append(
@@ -443,17 +446,23 @@ class QueryBuilder(object):
                 val = value['definition']
                 label = ':' + val['node_class'].__label__
                 if attr == 'extra_match':
-                    stmt = generate_label(value['value'],
+                    # insert value definitions in match
+                    match, where, query_params = generate_label(value['value'],
                                           **{'val': val,
                                              'source_ident': ident,
                                              'label': label,
-                                             'value': value['value']})
-                    if stmt and value['operation'] == ' OR ':
-                        stmt = [value['operation'].join(stmt), ]
+                                             'value': value['value'],
+                                             'nodeset_origin': node_set})
+                    #  if stmt and value['operation'] == ' OR ':
+                    #      stmt = [value['operation'].join(stmt), ]
+                    self._ast['match'] += match
+                    self._ast['where'] += where
+                    self._query_params = {**self._query_params, **query_params}
+                    print(self._ast)
                 else:
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
-                self._ast['where'] += stmt
+                    self._ast['where'] += stmt
             else:
                 raise ValueError("Expecting dict got: " + repr(value))
 
@@ -533,34 +542,45 @@ class QueryBuilder(object):
             self._ast['where'].append(' AND '.join(stmts))
 
     def build_query(self):
-        query = ''
+        query = self.build_query_build_lookup()
+        query = self.build_query_build_match(query)
+        query = self.build_query_build_where(query)
+        query = self.build_query_build_with(query)
+        query = self.build_query_build_return(query)
+        return query
 
+    def build_query_build_lookup(self, query=''):
         if 'lookup' in self._ast:
             query += self._ast['lookup']
+        return query
 
+    def build_query_build_match(self, query=''):
         query += ' MATCH '
         query += ', '.join(['({})'.format(i) for i in self._ast['match']])
+        return query
 
+    def build_query_build_where(self, query='', **params):
         if 'where' in self._ast and self._ast['where']:
-            query += ' WHERE '
+            if params.get('where', True):
+                query += ' WHERE '
             query += ' AND '.join(self._ast['where'])
+        return query
 
+    def build_query_build_with(self, query=''):
         if 'with' in self._ast and self._ast['with']:
             query += ' WITH '
             query += self._ast['with']
+        return query
 
+    def build_query_build_return(self, query=''):
         query += ' RETURN ' + self._ast['return']
-
         if 'order_by' in self._ast and self._ast['order_by']:
             query += ' ORDER BY '
             query += ', '.join(self._ast['order_by'])
-
         if 'skip' in self._ast:
             query += ' SKIP {0:d}'.format(self._ast['skip'])
-
         if 'limit' in self._ast:
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
-
         return query
 
     def _count(self):
@@ -569,7 +589,7 @@ class QueryBuilder(object):
         self._ast.pop('order_by', None)
         # drop limit & offset
         limit = self._ast.pop('limit', None)
-        skip =  self._ast.pop('skip', None)
+        skip = self._ast.pop('skip', None)
         query = self.build_query()
         results, _ = db.cypher_query(query, self._query_params)
         # update it
@@ -699,7 +719,12 @@ class NodeSet(BaseSet):
         # used by has()
         self.must_match = {}
         self.dont_match = {}
+        # for nodeset or structured node relationships
         self.extra_match = {}
+
+    def to_q_filters(self, filters):
+        return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}), \
+                self.filters.items(), Q())
 
     def set_limit(self, limit=200):
         """
@@ -842,7 +867,6 @@ class NodeSet(BaseSet):
         process_has_args(self, kwargs)
         return self
 
-
     def find_by_edge(self, *args, **kwargs):
         """
         Extra filter for find nodes by relationship properties
@@ -873,7 +897,7 @@ class NodeSet(BaseSet):
             ident = self.source.target_class.__label__.lower()
         else:
             ident = self.source.__label__.lower()
-        rhs_ident = field._raw_class.split('.')[-1]
+        rhs_ident = get_rhs_ident(field)
         rel_ident = rhs_ident.lower()
         self._extra_queries['match'].append(
             _rel_helper(
@@ -929,9 +953,6 @@ class NodeSet(BaseSet):
 @update_matches.register(NodeSet)
 @update_matches.register(StructuredNode)
 def _um_register(argument, builder, key, definition, **kwargs):
-    """
-    include type of finding object
-    """
     builder.extra_match[key] = {
         'definition': definition,
         'type': type(argument),
@@ -942,15 +963,34 @@ def _um_register(argument, builder, key, definition, **kwargs):
 
 @generate_label.register(tuple)
 @generate_label.register(list)
-@generate_label.register(NodeSet)
-def _generate_label_ns(type, **kwargs):
+def _generate_label_iterable_collections(type, **kwargs):
+    # if in `has()` argument type is list or tuple
     labels = (kwargs['label'] + ' { uid: "' + value.uid + '"}' for value in kwargs['value'])
     where_relation = [_rel_helper(
         lhs=kwargs['source_ident'],
         rhs=label,
         ident='',
         **kwargs['val']) for label in labels]
-    return where_relation
+    return [], where_relation, {}
+
+
+@generate_label.register(NodeSet)
+def _generate_label_ns(type, **kwargs):
+    # if in `has()` argument type is `NodeSet`
+    # query_params, build_query()
+    inner_query_builder = type.query_builder
+    # where `has()` query
+    where_query = inner_query_builder.build_query_build_where(where=False)
+    # insert into origin nodeset `match` option
+    matches = inner_query_builder._ast.setdefault('match', [])
+
+    where_relation = _rel_helper(
+        lhs=kwargs['source_ident'],
+        rhs=inner_query_builder._ast['match'][0].strip('(').strip(')'),
+        **kwargs['val'])
+    return [where_relation, ], \
+           [where_query, ], \
+           inner_query_builder._query_params
 
 
 class Traversal(BaseSet):

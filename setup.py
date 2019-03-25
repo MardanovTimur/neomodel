@@ -20,7 +20,8 @@ setup(
     install_requires=[
         'neo4j-driver>=1.5.2, <1.7.0',
         'pytz>=2016.10',
-        'python-dateutil==2.8.0'
+        'python-dateutil==2.8.0',
+        'numpy>=1.12.1',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
