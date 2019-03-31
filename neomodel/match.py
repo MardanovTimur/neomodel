@@ -260,7 +260,7 @@ def _generate_label_sn(type, **kwargs):
         rhs=label,
         ident='',
         **kwargs['val'])
-    self._ast['where'] = [where_relation, ]
+    self._ast['where'].append(where_relation)
     return self
 
 
