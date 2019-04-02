@@ -442,7 +442,6 @@ class QueryBuilder(object):
         """
         match nodes by a label
         """
-        ident = ident if nodeset.ident is None else nodeset.ident
         ident_w_label = ident if nodeset.no_label_in_ident else \
                 ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
@@ -731,9 +730,8 @@ class NodeSet(BaseSet):
         self.no_label_in_ident = False
         self._query_params = {}
         self.lookup = ""
-        self.ident = None
 
-    def extend_cypher(self, query, params={}, query_ident=None):
+    def extend_cypher(self, query, params={}):
         """
         Attrs:
             query (str): Cypher query.
@@ -742,15 +740,14 @@ class NodeSet(BaseSet):
         Returns:
             <NodeSet>
         """
-        assert isinstance(query_ident, (str, None)), 'query_ident should be str instance'
         assert isinstance(query, str), 'query should be str instance'
         assert isinstance(params, dict), 'params should be dict instance'
 
         self.no_label_in_ident = True
 
         assert 'WITH' in query, 'query should contains and returns WITH statement'
-        if query_ident is not None:
-            self.ident = query_ident
+
+        query += " AS {}".format(self.source.__label__.lower())
 
         self.lookup += query
         self._query_params = params

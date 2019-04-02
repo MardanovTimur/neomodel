@@ -80,7 +80,7 @@ def test_has_functionality():
     WITH c
     """
     params = {'car_uid': '2'}
-    cars = Car.nodes.extend_cypher(query, params, 'c').filter(name__icontains='asdasd').all()
+    cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
 
 
 if __name__ == "__main__":
