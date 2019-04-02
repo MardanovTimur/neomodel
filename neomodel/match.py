@@ -279,11 +279,14 @@ class QueryBuilder(object):
     def __init__(self, node_set):
         self.node_set = node_set
         self._ast = {
-            'lookup': "{}".format(node_set.lookup),
             'match': [],
             'where': [],
         }
-        self._query_params = {**node_set._query_params, }
+        if hasattr(node_set, 'lookup') and node_set.lookup is not None:
+            self._ast['lookup'] = node_set.lookup
+        self._query_params = {}
+        if hasattr(node_set, '_query_params'):
+            self._query_params = node_set._query_params
         self._place_holder_registry = {}
         self._ident_count = 0
 
@@ -1092,6 +1095,7 @@ class Traversal(BaseSet):
         self.name = name
         self.rel_ident = name
         self.filters = []
+        self.no_label_in_ident = False
 
     def match(self, **kwargs):
         """
