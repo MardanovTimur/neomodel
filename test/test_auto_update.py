@@ -73,6 +73,16 @@ def test_has_functionality():
 
     print(Car.nodes.has(owner=u2).all())
 
+
+    query = """
+    match (c:Car)
+        WHERE c.uid = $car_uid
+    WITH c
+    """
+    params = {'car_uid': '2'}
+    cars = Car.nodes.extend_cypher(query, params, 'c').filter(name__icontains='asdasd').all()
+
+
 if __name__ == "__main__":
     config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL',
                                          'bolt://neo4j:neo4j_admin@localhost:7687')

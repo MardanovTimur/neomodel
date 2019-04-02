@@ -278,8 +278,12 @@ def _um_register(argument, builder, key, definition, **kwargs):
 class QueryBuilder(object):
     def __init__(self, node_set):
         self.node_set = node_set
-        self._ast = {'match': [], 'where': []}
-        self._query_params = {}
+        self._ast = {
+            'lookup': "{}".format(node_set.lookup),
+            'match': [],
+            'where': [],
+        }
+        self._query_params = {**node_set._query_params, }
         self._place_holder_registry = {}
         self._ident_count = 0
 
@@ -353,7 +357,7 @@ class QueryBuilder(object):
             return self.build_traversal(source)
         elif isinstance(source, NodeSet):
             if inspect.isclass(source.source) and issubclass(source.source, StructuredNode):
-                ident = self.build_label(source.source.__label__.lower(), source.source)
+                ident = self.build_label(source.source.__label__.lower(), source)
             else:
                 ident = self.build_source(source.source)
 
@@ -434,14 +438,16 @@ class QueryBuilder(object):
         self._ast['result_class'] = node.__class__
         return ident
 
-    def build_label(self, ident, cls):
+    def build_label(self, ident, nodeset):
         """
         match nodes by a label
         """
-        ident_w_label = ident + ':' + cls.__label__
+        ident = ident if nodeset.ident is None else nodeset.ident
+        ident_w_label = ident if nodeset.no_label_in_ident else \
+                ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
         self._ast['return'] = ident
-        self._ast['result_class'] = cls
+        self._ast['result_class'] = nodeset.source
         return ident
 
     def generate_query(self, ident, node_set, attr='must_match'):
@@ -721,6 +727,36 @@ class NodeSet(BaseSet):
         # for nodeset or structured node relationships
         self.extra_match = {}
 
+        # for extend cypher query
+        self.no_label_in_ident = False
+        self._query_params = {}
+        self.lookup = ""
+        self.ident = None
+
+    def extend_cypher(self, query, params={}, query_ident=None):
+        """
+        Attrs:
+            query (str): Cypher query.
+            params (dict): Cypher params in `query` param
+            query_ident: ident that placed in `query` after WITH predicate
+        Returns:
+            <NodeSet>
+        """
+        assert isinstance(query_ident, (str, None)), 'query_ident should be str instance'
+        assert isinstance(query, str), 'query should be str instance'
+        assert isinstance(params, dict), 'params should be dict instance'
+
+        self.no_label_in_ident = True
+
+        assert 'WITH' in query, 'query should contains and returns WITH statement'
+        if query_ident is not None:
+            self.ident = query_ident
+
+        self.lookup += query
+        self._query_params = params
+        return self
+
+
     def to_q_filters(self, filters):
         return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}),
                       self.filters.items(), Q())
@@ -982,12 +1018,16 @@ def _generate_label_ns(type, **kwargs):
     # if in `has()` argument type is `NodeSet`
     # query_params, build_query()
     self = kwargs['self']
+
+    # NodeSet query builder (in `has` function)
     inner_query_builder = type.query_builder
     # where `has()` query
     where_query = inner_query_builder.build_query_build_where(where=False)
+
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
+    # TODO (timurmardanov97@gmail.com): has into has nodeset. Is not working
     match_relation = _rel_helper(
         rhs=kwargs['source_ident'],
         lhs=inner_query_builder._ast['match'][0].strip('(').strip(')'),
@@ -1002,6 +1042,7 @@ def _generate_label_ns(type, **kwargs):
     # add where
     if where_query:
         self._ast['where'] += [where_query, ]
+    # union query params of two nodesets
     self._query_params = {**self._query_params, **inner_query_builder._query_params}
     return self
 
