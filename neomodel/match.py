@@ -514,7 +514,7 @@ class QueryBuilder(object):
                     filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
 
                     rhs_ident = get_rhs_ident(rel_field)
-                    rel_ident = rhs_ident.lower()
+                    rel_ident = "{}_{}".format(ident, rhs_ident.lower())
 
                     matches.append(
                         _rel_helper(
@@ -522,6 +522,7 @@ class QueryBuilder(object):
                             ':' + rhs_ident,
                             rel_ident,
                             rel_field.definition['relation_type']))
+                    # monkey
                     ident = rel_ident
                 else:
                     # base filter
@@ -962,7 +963,7 @@ class NodeSet(BaseSet):
         else:
             ident = self.source.__label__.lower()
         rhs_ident = get_rhs_ident(field)
-        rel_ident = rhs_ident.lower()
+        rel_ident = "{}_{}".format(ident, rhs_ident.lower())
         self._extra_queries['match'].append(
             _rel_helper(
                 ident,
