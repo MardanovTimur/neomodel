@@ -76,7 +76,7 @@ def test_has_functionality():
     print(list(users))
 
     print(Car.nodes.append_relationship("item").all())
-    Car.nodes.filter(Q(item__name__icontains='fire')).all()
+    Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
 
     #  print(Car.nodes.has(owner=u2).all())
 

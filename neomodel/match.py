@@ -508,6 +508,8 @@ class QueryBuilder(object):
                     q_childs = "(" + q_childs + ")"
                 target.append(q_childs)
             else:
+                # for identation of relationship fields or not
+                operator = ident
                 kwargs = {child[0]: child[1]}
                 if len(child[0].split('__')) == 3:
                     # find_by_edge
@@ -522,8 +524,7 @@ class QueryBuilder(object):
                             ':' + rhs_ident,
                             rel_ident,
                             rel_field.definition['relation_type']))
-                    # monkey
-                    ident = rel_ident
+                    operator = rel_ident
                 else:
                     # base filter
                     filters = process_filter_args(source_class, kwargs)
@@ -531,10 +532,10 @@ class QueryBuilder(object):
                     op, val = op_and_val
                     if op in _UNARY_OPERATORS:
                         # unary operators do not have a parameter
-                        statement = '{}.{} {}'.format(ident, prop, op)
+                        statement = '{}.{} {}'.format(operator, prop, op)
                     else:
-                        place_holder = self._register_place_holder(ident + '_' + prop)
-                        statement = '{}.{} {} {{{}}}'.format(ident, prop, op, place_holder)
+                        place_holder = self._register_place_holder(operator + '_' + prop)
+                        statement = '{}.{} {} {{{}}}'.format(operator, prop, op, place_holder)
                         self._query_params[place_holder] = val
                     target.append(statement)
         ret = ' {} '.format(q.connector).join(target)
