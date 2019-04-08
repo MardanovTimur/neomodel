@@ -162,6 +162,7 @@ def preprocess_filter_find_args(cls, kwargs):
     rel_field = getattr(cls, relationship_field)
     kwargs = {key: value}
     res = process_filter_args(rel_field.definition['model'], kwargs)
+    # returns where definition
     return res, rel_field
 
 
@@ -218,24 +219,25 @@ def process_filter_args(cls, kwargs):
     return output
 
 
-def process_has_args(builder, kwargs):
+def process_has_args(builder, kwargs, operation):
     """
     loop through has parameters check they correspond to class rels defined
     """
+    # nodeset
     cls = builder.source_class
+    # all relationships from model
     rel_definitions = cls.defined_properties(properties=False, rels=True, aliases=False)
 
     for key, value in kwargs.items():
-        if key != 'operation':
-            if key not in rel_definitions:
-                raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
+        if key not in rel_definitions:
+            raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
 
-            # initialize lookup node class of `key` field from source_class
-            rel_definitions[key]._lookup_node_class()
-            # get `key` definition from field
-            definition = rel_definitions[key].definition
-            # set parameters for build class, for create relationship query
-            update_matches(value, builder, key, definition, **kwargs)
+        # initialize lookup node class of `key` field from source_class
+        rel_definitions[key]._lookup_node_class()
+        # get `key` definition from field
+        definition = rel_definitions[key].definition
+        # set parameters for build class, for create relationship query
+        update_matches(value, builder, key, definition, **kwargs)
 
 
 @singledispatch
@@ -364,11 +366,14 @@ class QueryBuilder(object):
             else:
                 ident = self.build_source(source.source)
 
+            # has calls
             self.build_additional_match(ident, source)
 
+            # order by filtering
             if hasattr(source, '_order_by'):
                 self.build_order_by(ident, source)
 
+            # base filtering
             if source.filters or source.q_filters:
                 self.build_where_stmt(
                     ident,
@@ -487,20 +492,40 @@ class QueryBuilder(object):
         return key + '_' + str(self._place_holder_registry[key])
 
     def _where_query(self, ident, q, source_class):
-        ret = self._parse_q_filters(ident, q, source_class)
-        return ret, self._query_params
+        match_stmt, where_stmt = self._parse_q_filters(ident, q, source_class)
+        match_stmt = set(match_stmt)
+        if match_stmt:
+            self._ast['match'] += list(match_stmt)
+            self._ast['where'].append(where_stmt)
+        return where_stmt, self._query_params
 
-    def _parse_q_filters(self, ident, q, source_class):
+    def _parse_q_filters(self, ident, q, source_class, matches=[]):
         target = []
         for child in q.children:
             if isinstance(child, QBase):
-                q_childs = self._parse_q_filters(ident, child, source_class)
+                matches, q_childs = self._parse_q_filters(ident, child, source_class, matches)
                 if child.connector == Q.OR:
                     q_childs = "(" + q_childs + ")"
                 target.append(q_childs)
             else:
                 kwargs = {child[0]: child[1]}
-                filters = process_filter_args(source_class, kwargs)
+                if len(child[0].split('__')) == 3:
+                    # find_by_edge
+                    filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
+
+                    rhs_ident = get_rhs_ident(rel_field)
+                    rel_ident = rhs_ident.lower()
+
+                    matches.append(
+                        _rel_helper(
+                            ident,
+                            ':' + rhs_ident,
+                            rel_ident,
+                            rel_field.definition['relation_type']))
+                    ident = rel_ident
+                else:
+                    # base filter
+                    filters = process_filter_args(source_class, kwargs)
                 for prop, op_and_val in filters.items():
                     op, val = op_and_val
                     if op in _UNARY_OPERATORS:
@@ -514,17 +539,20 @@ class QueryBuilder(object):
         ret = ' {} '.format(q.connector).join(target)
         if q.negated:
             ret = 'NOT ({})'.format(ret)
-        return ret
+        return matches, ret
 
     def build_where_stmt(self, ident, filters, q_filters=None, source_class=None):
         """
         construct a where statement from some filters
         """
         if q_filters is not None:
-            stmts = self._parse_q_filters(ident, q_filters, source_class)
-            if stmts:
-                self._ast['where'].append(stmts)
+            match_stmt, where_stmt = self._parse_q_filters(ident, q_filters, source_class, [])
+            match_stmt = set(match_stmt)
+            if match_stmt:
+                self._ast['match'] += list(match_stmt)
+                self._ast['where'].append(where_stmt)
         else:
+            # DEPRECATED
             stmts = []
             for row in filters:
                 negate = False
@@ -548,12 +576,12 @@ class QueryBuilder(object):
 
             self._ast['where'].append(' AND '.join(stmts))
 
-    def build_query(self):
+    def build_query(self, return_operation='RETURN'):
         query = self.build_query_build_lookup()
         query = self.build_query_build_match(query)
         query = self.build_query_build_where(query)
         query = self.build_query_build_with(query)
-        query = self.build_query_build_return(query)
+        query = self.build_query_build_return(query, return_operation)
         return query
 
     def build_query_build_lookup(self, query=''):
@@ -579,8 +607,8 @@ class QueryBuilder(object):
             query += self._ast['with']
         return query
 
-    def build_query_build_return(self, query=''):
-        query += ' RETURN ' + self._ast['return']
+    def build_query_build_return(self, query='', return_operation=None):
+        query += ' {} '.format(return_operation) + self._ast['return']
         if 'order_by' in self._ast and self._ast['order_by']:
             query += ' ORDER BY '
             query += ', '.join(self._ast['order_by'])
@@ -729,7 +757,7 @@ class NodeSet(BaseSet):
         # for nodeset or structured node relationships
         self.extra_match = {}
 
-        # for extend cypher query
+        # for extend cypher query (from query, to NodeSet)
         self.no_label_in_ident = False
         self._query_params = {}
         self.lookup = ""
@@ -753,13 +781,13 @@ class NodeSet(BaseSet):
         query += " AS {}".format(self.source.__label__.lower())
 
         self.lookup += query
-        self._query_params = params
+        self._query_params.update(params)
         return self
 
 
     def to_q_filters(self, filters):
         return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}),
-                      self.filters.items(), Q())
+                      filters.items(), Q())
 
     def set_limit(self, limit=200):
         """
@@ -899,7 +927,8 @@ class NodeSet(BaseSet):
         Supports operation
          & or |
         """
-        process_has_args(self, kwargs)
+        operation = kwargs.pop('operation', '&')
+        process_has_args(self, kwargs, operation)
         return self
 
     def find_by_edge(self, *args, **kwargs):
@@ -915,7 +944,7 @@ class NodeSet(BaseSet):
             icontains - search param
         """
         if args or kwargs:
-            self.relationship_filters = Q(self.relationship_filters & Q(*args, **kwargs))
+            self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
 
     def append_relationship(self, field):
@@ -1021,29 +1050,27 @@ def _generate_label_ns(type, **kwargs):
 
     # NodeSet query builder (in `has` function)
     inner_query_builder = type.query_builder
-    # where `has()` query
-    where_query = inner_query_builder.build_query_build_where(where=False)
+    inner_ident = inner_query_builder.node_set.source.__label__.lower()
+    inner_query = inner_query_builder.build_query('WITH')
 
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
-    # TODO (timurmardanov97@gmail.com): has into has nodeset. Is not working
     match_relation = _rel_helper(
         rhs=kwargs['source_ident'],
-        lhs=inner_query_builder._ast['match'][0].strip('(').strip(')'),
+        lhs=inner_ident,
         reverse=True,
         **kwargs['val'])
 
     # add lookup
     self._ast.setdefault('lookup', "")
-    self._ast['lookup'] += inner_query_builder._ast.get('lookup', "")
+    self._ast['lookup'] += inner_query
+
     # add connection
     self._ast['match'] += [match_relation, ]
-    # add where
-    if where_query:
-        self._ast['where'] += [where_query, ]
+
     # union query params of two nodesets
-    self._query_params = {**self._query_params, **inner_query_builder._query_params}
+    self._query_params.update(inner_query_builder._query_params)
     return self
 
 

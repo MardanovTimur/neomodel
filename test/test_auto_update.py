@@ -1,9 +1,11 @@
 from neomodel import db, config
+from neomodel.match_q import Q
 from neomodel.match import NodeSet
 from neomodel.cardinality import ZeroOrOne
 from neomodel.relationship_manager import ZeroOrMore
 from neomodel.relationship_manager import RelationshipFrom
 from neomodel.relationship_manager import RelationshipTo
+from neomodel.relationship import StructuredRel
 from neomodel import (
     StructuredNode,
     StringProperty,
@@ -17,18 +19,22 @@ import logging
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 
+class ItemCarRel(StructuredRel):
+    name = StringProperty()
+
+
 class User(StructuredNode):
     username = StringProperty()
     car = RelationshipFrom('Car', 'OWN', ZeroOrMore)
 
 
 class Item(StructuredNode):
-    car = RelationshipFrom('Car', 'U', ZeroOrMore)
+    car = RelationshipFrom('Car', 'U', ZeroOrMore, model=ItemCarRel)
 
 class Car(StructuredNode):
     name = StringProperty()
     owner = RelationshipTo('User', 'OWN', ZeroOrOne)
-    item = RelationshipTo('Item', 'U', ZeroOrMore)
+    item = RelationshipTo('Item', 'U', ZeroOrMore, model=ItemCarRel)
 
     datetime_auto_update = DateTimeProperty(default_now=True, auto_update=True)
 
@@ -61,26 +67,27 @@ def test_has_functionality():
 
 
     users = User.nodes.filter(username__in=["Jack", 'Sasha'])
+    print(users.all())
     cars = Car.nodes.has(owner=users)
-    cars = cars.has(item=item)
+    #  cars = cars.has(item=item)
     print(cars.all())
 
-
-    cars = item.car.filter()
-    users = User.nodes.has(car=cars)
+    users = Item.nodes.has(car=cars)
     print(list(users))
 
 
-    print(Car.nodes.has(owner=u2).all())
+    Car.nodes.filter(Q(item__name__icontains='fire')).all()
+
+    #  print(Car.nodes.has(owner=u2).all())
 
 
-    query = """
-    match (c:Car)
-        WHERE c.uid = $car_uid
-    WITH c
-    """
-    params = {'car_uid': '2'}
-    cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
+    #  query = """
+    #  match (c:Car)
+    #      WHERE c.uid = $car_uid
+    #  WITH c
+    #  """
+    #  params = {'car_uid': '2'}
+    #  cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
 
 
 if __name__ == "__main__":
@@ -91,3 +98,9 @@ if __name__ == "__main__":
 
     # RUN LOCAL TESTS
     test_has_functionality()
+#      db.cypher_query("""
+#  MATCH (user:User) WITH user
+#  MATCH (user)--(a:Car) return user as u_union
+#  UNION
+#  MATCH (user:User) WITH user
+#  MATCH (user)--(b:Car) return user as u_union""")
