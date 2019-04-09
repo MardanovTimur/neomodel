@@ -66,17 +66,20 @@ def test_has_functionality():
     u2.car.connect(l)
 
 
-    users = User.nodes.filter(username__in=["Jack", 'Sasha'])
-    print(users.all())
-    cars = Car.nodes.has(owner=users)
-    #  cars = cars.has(item=item)
-    print(cars.all())
+    #  users = User.nodes.filter(username__in=["Jack", 'Sasha'])
+    #  print(users.all())
+    #  cars = Car.nodes.has(owner=users)
+    #  #  cars = cars.has(item=item)
+    #  print(cars.all())
 
-    users = Item.nodes.has(car=cars)
-    print(list(users))
+    #  users = Item.nodes.has(car=cars)
+    #  print(list(users))
 
-    print(Car.nodes.append_relationship("item").all())
-    Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
+    #  print(Car.nodes.append_relationship("item").all())
+    #  Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
+
+
+    print(Car.nodes.filter(Q(name__icontains='asd')).all())
 
     #  print(Car.nodes.has(owner=u2).all())
 

@@ -317,7 +317,7 @@ class QueryBuilder(object):
             match_stmt = set(match_stmt)
             if match_stmt:
                 self._ast['match'] += list(match_stmt)
-                self._ast['where'].append(where_stmt)
+            self._ast['where'].append(where_stmt)
 
     def _parse_q_find_filters(self, ident, q, source_class, matches=[]):
         target = []
@@ -552,7 +552,7 @@ class QueryBuilder(object):
             match_stmt = set(match_stmt)
             if match_stmt:
                 self._ast['match'] += list(match_stmt)
-                self._ast['where'].append(where_stmt)
+            self._ast['where'].append(where_stmt)
         else:
             # DEPRECATED
             stmts = []
