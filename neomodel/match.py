@@ -496,6 +496,7 @@ class QueryBuilder(object):
         match_stmt = set(match_stmt)
         if match_stmt:
             self._ast['match'] += list(match_stmt)
+        if where_stmt:
             self._ast['where'].append(where_stmt)
         return where_stmt, self._query_params
 
@@ -552,7 +553,8 @@ class QueryBuilder(object):
             match_stmt = set(match_stmt)
             if match_stmt:
                 self._ast['match'] += list(match_stmt)
-            self._ast['where'].append(where_stmt)
+            if where_stmt:
+                self._ast['where'].append(where_stmt)
         else:
             # DEPRECATED
             stmts = []

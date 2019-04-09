@@ -79,7 +79,7 @@ def test_has_functionality():
     #  Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
 
 
-    print(Car.nodes.filter(Q(name__icontains='asd')).all())
+    print(Car.nodes.filter(Q()).all())
 
     #  print(Car.nodes.has(owner=u2).all())
 
