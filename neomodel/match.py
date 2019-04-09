@@ -673,6 +673,10 @@ class BaseSet(object):
     """
     query_cls = QueryBuilder
 
+
+    def __init__(self):
+        self.with_identations = set()
+
     def all(self, multiple=False):
         """
         Return all nodes belonging to the set
@@ -688,6 +692,7 @@ class BaseSet(object):
         return (i for i in self.query_cls(self).build_ast()._execute())
 
     def __len__(self):
+        self.with_identations = set()
         return self.query_cls(self).build_ast()._count()
 
     def __bool__(self):
@@ -729,6 +734,7 @@ class NodeSet(BaseSet):
     """
 
     def __init__(self, source):
+        super(NodeSet, self).__init__()
         self.source = source  # could be a Traverse object or a node class
         if isinstance(source, Traversal):
             self.source_class = source.target_class
@@ -1057,6 +1063,7 @@ def _generate_label_ns(type, **kwargs):
     inner_ident = inner_query_builder.node_set.source.__label__.lower()
     inner_query = inner_query_builder.build_query('WITH')
 
+
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
@@ -1066,9 +1073,15 @@ def _generate_label_ns(type, **kwargs):
         reverse=True,
         **kwargs['val'])
 
+    if self.node_set.with_identations:
+        inner_query += ", " + list(self.node_set.with_identations)[0]
+
     # add lookup
     self._ast.setdefault('lookup', "")
     self._ast['lookup'] += inner_query
+
+    self.node_set.with_identations.add(inner_ident)
+    print('WITH IDENTATION', self.node_set.with_identations)
 
     # add connection
     self._ast['match'] += [match_relation, ]

@@ -72,14 +72,18 @@ def test_has_functionality():
     #  #  cars = cars.has(item=item)
     #  print(cars.all())
 
-    #  users = Item.nodes.has(car=cars)
+    items = Item.nodes.filter()
+    users = User.nodes.filter()
+    cars = Car.nodes.has(item=items)
+    cars = cars.has(owner=users)
+    print(list(cars))
     #  print(list(users))
 
     #  print(Car.nodes.append_relationship("item").all())
     #  Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
 
 
-    print(Car.nodes.filter(Q()).all())
+    #  print(Car.nodes.filter(Q()).all())
 
     #  print(Car.nodes.has(owner=u2).all())
 
