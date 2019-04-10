@@ -283,9 +283,10 @@ class QueryBuilder(object):
         self._ast = {
             'match': [],
             'where': [],
+            'lookup': [],
         }
         if hasattr(node_set, 'lookup') and node_set.lookup is not None:
-            self._ast['lookup'] = node_set.lookup
+            self._ast['lookup'].append(node_set.lookup)
         self._query_params = {}
         if hasattr(node_set, '_query_params'):
             self._query_params = node_set._query_params
@@ -438,7 +439,7 @@ class QueryBuilder(object):
         # Hack to emulate START to lookup a node by id
         _node_lookup = 'MATCH ({}) WHERE id({})={{{}}} WITH {}'.format(
             ident, ident, place_holder, ident)
-        self._ast['lookup'] = _node_lookup
+        self._ast['lookup'].append(_node_lookup)
 
         self._query_params[place_holder] = node.id
 
@@ -588,9 +589,23 @@ class QueryBuilder(object):
         query = self.build_query_build_return(query, return_operation)
         return query
 
+
+    @classmethod
+    def gather_lookup_identations(cls, lookups):
+        identations = ""
+        for indice, lookup_query in enumerate(lookups):
+            if indice > 0:
+                # append after first lookup query
+                lookup_query += identations
+            identations += ', ' + lookup_query.strip(' ').split(" ")[-1]
+            yield lookup_query
+
+
     def build_query_build_lookup(self, query=''):
-        if 'lookup' in self._ast:
-            query += self._ast['lookup']
+        if 'lookup' in self._ast and self._ast['lookup']:
+            lookups = filter(lambda lookup: lookup, self._ast['lookup'])
+            lookups = self.gather_lookup_identations(lookups)
+            query += "\n".join(lookups)
         return query
 
     def build_query_build_match(self, query=''):
@@ -673,10 +688,6 @@ class BaseSet(object):
     """
     query_cls = QueryBuilder
 
-
-    def __init__(self):
-        self.with_identations = set()
-
     def all(self, multiple=False):
         """
         Return all nodes belonging to the set
@@ -692,7 +703,6 @@ class BaseSet(object):
         return (i for i in self.query_cls(self).build_ast()._execute())
 
     def __len__(self):
-        self.with_identations = set()
         return self.query_cls(self).build_ast()._count()
 
     def __bool__(self):
@@ -733,8 +743,8 @@ class NodeSet(BaseSet):
     A class representing as set of nodes matching common query parameters
     """
 
-    def __init__(self, source):
-        super(NodeSet, self).__init__()
+    def __init__(self, source, *args, **kwargs):
+        super(NodeSet, self).__init__(*args, **kwargs)
         self.source = source  # could be a Traverse object or a node class
         if isinstance(source, Traversal):
             self.source_class = source.target_class
@@ -1073,15 +1083,10 @@ def _generate_label_ns(type, **kwargs):
         reverse=True,
         **kwargs['val'])
 
-    if self.node_set.with_identations:
-        inner_query += ", " + list(self.node_set.with_identations)[0]
 
     # add lookup
-    self._ast.setdefault('lookup', "")
-    self._ast['lookup'] += inner_query
-
-    self.node_set.with_identations.add(inner_ident)
-    print('WITH IDENTATION', self.node_set.with_identations)
+    self._ast.setdefault('lookup', [])
+    self._ast['lookup'].append(inner_query)
 
     # add connection
     self._ast['match'] += [match_relation, ]

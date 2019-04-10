@@ -66,17 +66,23 @@ def test_has_functionality():
     u2.car.connect(l)
 
 
-    #  users = User.nodes.filter(username__in=["Jack", 'Sasha'])
-    #  print(users.all())
-    #  cars = Car.nodes.has(owner=users)
-    #  #  cars = cars.has(item=item)
-    #  print(cars.all())
-
+    users = User.nodes.filter(username__in=["Jack", 'Sasha'])
+    cars = Car.nodes.has(owner=users)
     items = Item.nodes.filter()
+    cars = cars.has(item=items)
+    print(cars.all())
+
+    user = User.nodes.first()
+
+    user_cars = user.car.filter()
+    user_cars = user_cars.has(item=Item.nodes.filter())
+    print(list(user_cars))
+
     users = User.nodes.filter()
     cars = Car.nodes.has(item=items)
     cars = cars.has(owner=users)
     print(list(cars))
+
     #  print(list(users))
 
     #  print(Car.nodes.append_relationship("item").all())
@@ -88,13 +94,13 @@ def test_has_functionality():
     #  print(Car.nodes.has(owner=u2).all())
 
 
-    #  query = """
-    #  match (c:Car)
-    #      WHERE c.uid = $car_uid
-    #  WITH c
-    #  """
-    #  params = {'car_uid': '2'}
-    #  cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
+    query = """
+    match (c:Car)
+        WHERE c.uid = $car_uid
+    WITH c
+    """
+    params = {'car_uid': '2'}
+    cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
 
 
 if __name__ == "__main__":
