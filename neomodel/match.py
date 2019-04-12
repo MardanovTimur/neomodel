@@ -284,6 +284,7 @@ class QueryBuilder(object):
             'match': [],
             'where': [],
             'lookup': [],
+            'distinct': node_set.is_distinct,
         }
         if hasattr(node_set, 'lookup') and node_set.lookup is not None:
             self._ast['lookup'].append(node_set.lookup)
@@ -627,7 +628,13 @@ class QueryBuilder(object):
         return query
 
     def build_query_build_return(self, query='', return_operation=None):
-        query += ' {} '.format(return_operation) + self._ast['return']
+        # set WITH or RETURN value
+        query += ' {} '.format(return_operation)
+        # set DISTINCT or ''
+        if self._ast['distinct']:
+            query += "DISTINCT "
+        # return ident
+        query += self._ast['return']
         if 'order_by' in self._ast and self._ast['order_by']:
             query += ' ORDER BY '
             query += ', '.join(self._ast['order_by'])
@@ -638,7 +645,8 @@ class QueryBuilder(object):
         return query
 
     def _count(self):
-        self._ast['return'] = 'count({})'.format(self._ast['return'])
+        return_count_query = 'DISTINCT ' if self._ast['distinct'] else ''
+        self._ast['return'] = 'count({})'.format(return_count_query + self._ast['return'])
         # drop order_by, results in an invalid query
         self._ast.pop('order_by', None)
         # drop limit & offset
@@ -687,6 +695,16 @@ class BaseSet(object):
     Contains common python magic methods, __len__, __contains__ etc
     """
     query_cls = QueryBuilder
+
+    def __init__(self, *args, **kwargs):
+        self.is_distinct = False
+
+    def distinct(self, f=True):
+        """
+        Return DISTINCT results
+        """
+        self.is_distinct = f
+        return self
 
     def all(self, multiple=False):
         """
@@ -929,6 +947,8 @@ class NodeSet(BaseSet):
         if args or kwargs:
             self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
+
+
 
     def exclude(self, *args, **kwargs):
         """

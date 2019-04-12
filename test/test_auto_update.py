@@ -80,7 +80,7 @@ def test_has_functionality():
 
     users = User.nodes.filter()
     cars = Car.nodes.has(item=items)
-    cars = cars.has(owner=users)
+    cars = cars.has(owner=users).distinct()
     print(list(cars))
 
     #  print(list(users))
