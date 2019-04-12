@@ -1136,6 +1136,7 @@ class Traversal(BaseSet):
         Create a traversal
 
         """
+        super(Traversal, self).__init__()
         self.source = source
 
         if isinstance(source, Traversal):
