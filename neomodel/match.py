@@ -520,7 +520,6 @@ class QueryBuilder(object):
             self.no_label_in_ident = True
 
             query, params = UnionBlock.union_queries(ident, nodeset.union_operations)
-            print('Yay! query params', query, params)
 
             # extend cypher realisation
             self._ast['lookup'].append(query)
@@ -532,7 +531,6 @@ class QueryBuilder(object):
         self.generate_query(ident, node_set)
         self.generate_query(ident, node_set, 'dont_match')
         self.generate_query(ident, node_set, 'extra_match')
-        #  self.generate_union_query(ident, node_set)
 
     def _register_place_holder(self, key):
         self._place_holder_registry[key] = self._place_holder_registry.get(key, 0) + 1
