@@ -143,18 +143,20 @@ class RelationshipManager(object):
         return self._set_start_end_cls(rel_model.inflate(rels[0][0]), node)
 
     @check_source
-    def all_relationships(self, node):
+    def all_relationships(self, node=None):
         """
         Retrieve all relationship objects between self and node.
 
         :param node:
         :return: [StructuredRel]
         """
-        self._check_node(node)
-
         my_rel = _rel_helper(lhs='us', rhs='them', ident='r', **self.definition)
-        q = "MATCH " + my_rel + " WHERE id(them)={them} and id(us)={self} RETURN r "
-        rels = self.source.cypher(q, {'them': node.id})[0]
+        if node:
+            q = "MATCH " + my_rel + " WHERE id(them)={them} and id(us)={self} RETURN DISTINCT r "
+            rels = self.source.cypher(q, {'them': node.id})[0]
+        else:
+            q = "MATCH " + my_rel + " WHERE id(us)={self} RETURN DISTINCT r "
+            rels = self.source.cypher(q, {})[0]
         if not rels:
             return []
 

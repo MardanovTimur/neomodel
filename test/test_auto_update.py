@@ -118,6 +118,10 @@ def test_has_functionality():
     cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
     print(cars_union.all())
 
+    car = Car.nodes.first()
+    print(car.owner.all_relationships())
+
+
 
 if __name__ == "__main__":
     config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL',
