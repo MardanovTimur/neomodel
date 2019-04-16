@@ -103,6 +103,22 @@ def test_has_functionality():
     cars = Car.nodes.extend_cypher(query, params).filter(name__icontains='asdasd').all()
 
 
+    query = """
+    CALL apoc.cypher.run("
+        MATCH (i:Item)
+            WHERE i.name = $swag
+        RETURN i
+    ", $params) YIELD value
+    WITH value.i as item
+    RETURN item;
+    """
+    results, _ = db.cypher_query(query, {'params': {'swag': "asdasd"}})
+    print(results)
+
+    cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
+    print(cars_union.all())
+
+
 if __name__ == "__main__":
     config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL',
                                          'bolt://neo4j:neo4j_admin@localhost:7687')

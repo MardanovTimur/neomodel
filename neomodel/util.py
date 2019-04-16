@@ -306,6 +306,59 @@ class _UnsavedNode(object):
         return self.__repr__()
 
 
+class UnionBlock(object):
+
+    def __init__(self, source, field, field_definition, nodeset, **kwargs):
+        """
+        Attrs:
+            source (<NodeSet>): source  model
+            field (str): the relationship field name from source model
+            nodeset (<BaseSet>): nodeset
+        """
+        self.source = source
+        self.field = field
+        self.field_definition = field_definition
+        self.nodeset = nodeset
+        self.source_model = kwargs.get('source_model')
+
+
+    def build_query(self, ):
+        """
+        Returns:
+            query: str
+            params: dict
+        """
+        relationship = {
+            self.field: self.nodeset
+        }
+        qb = self.source_model.nodes.has(**relationship).query_builder
+        query = qb.build_query()
+        params = qb._query_params
+        return query, params
+
+    @staticmethod
+    def union_queries(source_ident, union_blocks):
+        query_params = map(lambda x: x.build_query(), union_blocks)
+        queries = []
+        parameters = {}
+        for query, params in query_params:
+            queries.append(query)
+            parameters.update(params)
+        query = " UNION ".join(queries)
+        parameter = "union_block"
+        params = {parameter: parameters}
+
+        # only python 3.6 support
+        pattern = f"""
+        CALL apoc.cypher.run(
+            "{query}",
+            ${parameter}
+        ) YIELD value
+        WITH value.{source_ident} as {source_ident}
+        """
+        return pattern, params
+
+
 def _get_node_properties(node):
     """Get the properties from a neo4j.v1.types.graph.Node object."""
     # 1.6.x and newer have it as `_properties`

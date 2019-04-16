@@ -7,7 +7,7 @@ from .properties import AliasProperty
 from .exceptions import MultipleNodesReturned, NeomodelException
 from .match_q import Q, QBase
 from functools import singledispatch, reduce
-from .util import get_rhs_ident
+from .util import get_rhs_ident, UnionBlock
 
 OUTGOING, INCOMING, EITHER = 1, -1, 0
 
@@ -240,6 +240,30 @@ def process_has_args(builder, kwargs, operation):
         update_matches(value, builder, key, definition, **kwargs)
 
 
+def process_union(nodeset, kwargs):
+    """
+    Attrs:
+        nodeset: source nodeset
+        kwargs - params
+    """
+    assert len(kwargs.items()) > 1, 'Union function may union greater or equal than 2 nodesets'
+
+    # source model
+    cls = nodeset.source_class
+    # all relationships from model
+    rel_definitions = cls.defined_properties(properties=False, rels=True, aliases=False)
+
+    for key, value in kwargs.items():
+        if key not in rel_definitions:
+            raise ValueError("No such relation {} defined on a {}".format(key, cls.__name__))
+        # initialize lookup node class of `key` field from source_class
+        rel_definitions[key]._lookup_node_class()
+        # get `key` definition from field
+        definition = rel_definitions[key].definition
+        union_block = UnionBlock(nodeset, key, definition, kwargs[key], source_model=cls)
+        nodeset.union_operations.append(union_block)
+
+
 @singledispatch
 def update_matches(argument, builder, key, definition, **kwargs):
     raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
@@ -256,13 +280,15 @@ def generate_label(type, **kwargs):
 @generate_label.register(StructuredNode)
 def _generate_label_sn(type, **kwargs):
     self = kwargs['self']
-    label = kwargs['label'] + ' { uid: "' + kwargs['value'].uid + '"}'
+    supplicant = kwargs['label'].lower()[1:] + "_uid"
+    label = kwargs['label'] + f' {{ uid: ${supplicant}}}'
     where_relation = _rel_helper(
         lhs=kwargs['source_ident'],
         rhs=label,
         ident='',
         **kwargs['val'])
     self._ast['where'].append(where_relation)
+    self._query_params.update({supplicant: kwargs['value'].uid})
     return self
 
 
@@ -293,6 +319,11 @@ class QueryBuilder(object):
             self._query_params = node_set._query_params
         self._place_holder_registry = {}
         self._ident_count = 0
+
+        # no label in ident
+        self.no_label_in_ident = False
+        if hasattr(node_set, 'no_label_in_ident'):
+            self.no_label_in_ident = node_set.no_label_in_ident
 
     def build_ast(self):
         self.build_source(self.node_set)
@@ -363,12 +394,16 @@ class QueryBuilder(object):
         if isinstance(source, (Traversal, TraversalRelationships)):
             return self.build_traversal(source)
         elif isinstance(source, NodeSet):
+
+
             if inspect.isclass(source.source) and issubclass(source.source, StructuredNode):
-                ident = self.build_label(source.source.__label__.lower(), source)
+                attrs = (source.source.__label__.lower(), source)
+                self.generate_union_query(*attrs)
+                ident = self.build_label(*attrs)
             else:
                 ident = self.build_source(source.source)
 
-            # has calls
+            # has, union calls
             self.build_additional_match(ident, source)
 
             # order by filtering
@@ -452,7 +487,7 @@ class QueryBuilder(object):
         """
         match nodes by a label
         """
-        ident_w_label = ident if nodeset.no_label_in_ident else \
+        ident_w_label = ident if self.no_label_in_ident else \
                 ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
         self._ast['return'] = ident
@@ -480,14 +515,24 @@ class QueryBuilder(object):
             else:
                 raise ValueError("Expecting dict got: " + repr(value))
 
+    def generate_union_query(self, ident, nodeset):
+        if nodeset.union_operations:
+            self.no_label_in_ident = True
+
+            query, params = UnionBlock.union_queries(ident, nodeset.union_operations)
+            print('Yay! query params', query, params)
+
+            # extend cypher realisation
+            self._ast['lookup'].append(query)
+            self._query_params.update(params)
+
     def build_additional_match(self, ident, node_set):
         """handle additional matches supplied by 'has()' calls
         """
-        source_ident = ident
-
         self.generate_query(ident, node_set)
         self.generate_query(ident, node_set, 'dont_match')
         self.generate_query(ident, node_set, 'extra_match')
+        #  self.generate_union_query(ident, node_set)
 
     def _register_place_holder(self, key):
         self._place_holder_registry[key] = self._place_holder_registry.get(key, 0) + 1
@@ -789,6 +834,7 @@ class NodeSet(BaseSet):
         self.filters = []
         self.q_filters = Q()
         self.relationship_filters = Q()
+
         # used by has()
         self.must_match = {}
         self.dont_match = {}
@@ -799,6 +845,9 @@ class NodeSet(BaseSet):
         self.no_label_in_ident = False
         self._query_params = {}
         self.lookup = ""
+
+        # for union operations (List[Type[UnionBlock]])
+        self.union_operations = []
 
     def extend_cypher(self, query, params={}):
         """
@@ -969,6 +1018,10 @@ class NodeSet(BaseSet):
         """
         operation = kwargs.pop('operation', '&')
         process_has_args(self, kwargs, operation)
+        return self
+
+    def union(self, **kwargs):
+        process_union(self, kwargs)
         return self
 
     def find_by_edge(self, *args, **kwargs):
