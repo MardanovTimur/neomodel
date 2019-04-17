@@ -215,8 +215,9 @@ class RelationshipManager(object):
         :param kwargs: same as `NodeSet.filter()` - Qs objects
         :return: [StructuredRel]
         """
+
         them_label = self.definition['node_class'].__label__
-        ret = self._parse_q_filters('r', qs, self.source_class)
+        ret = self._parse_q_filters('r', qs, self.definition['model'])
         data = self._query_params
         my_rel = _rel_helper(lhs='us', rhs='them:' + them_label, ident='r', **self.definition)
         if node:
