@@ -150,11 +150,14 @@ class RelationshipManager(object):
         :param node:
         :return: [StructuredRel]
         """
-        my_rel = _rel_helper(lhs='us', rhs='them', ident='r', **self.definition)
+        them_label = self.definition['node_class'].__label__
+        rhs = 'them:' + them_label
         if node:
+            my_rel = _rel_helper(lhs='us', rhs=rhs, ident='r', **self.definition)
             q = "MATCH " + my_rel + " WHERE id(them)={them} and id(us)={self} RETURN DISTINCT r "
             rels = self.source.cypher(q, {'them': node.id})[0]
         else:
+            my_rel = _rel_helper(lhs='us', rhs=rhs, ident='r', **self.definition)
             q = "MATCH " + my_rel + " WHERE id(us)={self} RETURN DISTINCT r "
             rels = self.source.cypher(q, {})[0]
         if not rels:
