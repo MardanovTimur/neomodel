@@ -5,7 +5,9 @@ from .exceptions import NotConnected
 from .util import deprecated, _get_node_properties
 from .match import OUTGOING, INCOMING, EITHER, _rel_helper, Traversal, NodeSet, process_filter_args
 from .relationship import StructuredRel
-from .match import TraversalRelationships
+from .match import TraversalRelationships, _UNARY_OPERATORS
+from .match_q import QBase, Q
+
 
 
 # basestring python 3.x fallback
@@ -38,6 +40,8 @@ class RelationshipManager(object):
         self.source_class = source.__class__
         self.name = key
         self.definition = definition
+        self._place_holder_registry = {}
+        self._query_params = {}
 
     def __str__(self):
         direction = 'either'
@@ -152,49 +156,84 @@ class RelationshipManager(object):
         """
         them_label = self.definition['node_class'].__label__
         rhs = 'them:' + them_label
+        my_rel = _rel_helper(lhs='us', rhs=rhs, ident='r', **self.definition)
         if node:
-            my_rel = _rel_helper(lhs='us', rhs=rhs, ident='r', **self.definition)
+            self._check_node(node)
             q = "MATCH " + my_rel + " WHERE id(them)={them} and id(us)={self} RETURN DISTINCT r "
-            rels = self.source.cypher(q, {'them': node.id})[0]
+            data = {'them': node.id}
         else:
-            my_rel = _rel_helper(lhs='us', rhs=rhs, ident='r', **self.definition)
             q = "MATCH " + my_rel + " WHERE id(us)={self} RETURN DISTINCT r "
-            rels = self.source.cypher(q, {})[0]
+            data = {}
+        rels = self.source.cypher(q, data)[0]
         if not rels:
             return []
 
         rel_model = self.definition.get('model') or StructuredRel
         return [self._set_start_end_cls(rel_model.inflate(rel[0]), node) for rel in rels]
 
+    def _register_place_holder(self, key):
+        self._place_holder_registry[key] = self._place_holder_registry.get(key, 0) + 1
+        return key + '_' + str(self._place_holder_registry[key])
+
+    def _parse_q_filters(self, ident, q, source_class):
+        target = []
+        for child in q.children:
+            if isinstance(child, QBase):
+                q_childs = self._parse_q_filters(ident, child, source_class)
+                if child.connector == Q.OR:
+                    q_childs = "(" + q_childs + ")"
+                target.append(q_childs)
+            else:
+                # for identation of relationship fields or not
+                operator = ident
+                kwargs = {child[0]: child[1]}
+
+                # base filter
+                filters = process_filter_args(source_class, kwargs)
+
+                for prop, op_and_val in filters.items():
+                    op, val = op_and_val
+                    if op in _UNARY_OPERATORS:
+                        # unary operators do not have a parameter
+                        statement = '{}.{} {}'.format(operator, prop, op)
+                    else:
+                        place_holder = self._register_place_holder(operator + '_' + prop)
+                        statement = '{}.{} {} {{{}}}'.format(operator, prop, op, place_holder)
+                        self._query_params[place_holder] = val
+                    target.append(statement)
+        ret = ' {} '.format(q.connector).join(target)
+        if q.negated:
+            ret = 'NOT ({})'.format(ret)
+        return ret
+
     @check_source
-    def filter_relationships(self, node, operator="AND", **kwargs):
+    def filter_relationships(self, node, qs=Q()):
         """
         Filter and get all relationship objects between self and node by kwargs.
 
         :param node:
-        :param kwargs: same as `NodeSet.filter()`
+        :param kwargs: same as `NodeSet.filter()` - Qs objects
         :return: [StructuredRel]
         """
-        self._check_node(node)
-        my_rel = _rel_helper(lhs='us', rhs='them', ident='r', **self.definition)
+        them_label = self.definition['node_class'].__label__
+        ret = self._parse_q_filters('r', qs, self.source_class)
+        data = self._query_params
+        my_rel = _rel_helper(lhs='us', rhs='them:' + them_label, ident='r', **self.definition)
+        if node:
+            self._check_node(node)
+            if ret:
+                ret = " AND " + ret
+            q = "MATCH " + my_rel + " WHERE id(them)=$them AND id(us)=$self {where} RETURN DISTINCT r ".format(where=ret)
+            data.update({'them': node.id})
+        else:
+            q = "MATCH " + my_rel + " WHERE id(us)=$self AND {where} RETURN DISTINCT r ".format(where=ret)
 
-        # build relationship where
-        output = process_filter_args(self.definition['model'], kwargs)
-        where_query = "WHERE id(them)={them} AND id(us)={self}"
-        parameters = {}
-        if output:
-            where_stmt = " {} ".format(operator).join(["r.{name} {operator} ${name}".format(name=out[0],
-                operator=out[1][0]) for out in output.items()])
-            where_query += " AND ({})".format(where_stmt)
-            parameters = dict([(out[0], out[1][1]) for out in output.items()])
-        q = "MATCH " + my_rel + "{}  RETURN r".format(where_query)
-        rels = self.source.cypher(q, {'them': node.id, **parameters})[0] #noqa
+        rels = self.source.cypher(q, data)[0]
         if not rels:
-            return
+            return []
 
         rel_model = self.definition.get('model') or StructuredRel
-
-        return [self._set_start_end_cls(rel_model.inflate(rel), node) for rel in rels[0]]
+        return [self._set_start_end_cls(rel_model.inflate(rel[0]), node) for rel in rels]
 
     def _set_start_end_cls(self, rel_instance, obj):
         if self.definition['direction'] == INCOMING:

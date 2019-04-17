@@ -362,6 +362,8 @@ class QueryBuilder(object):
                 target.append(q_childs)
             else:
                 kwargs = {child[0]: child[1]}
+
+                # match relationship filters
                 filters, rel_field = preprocess_filter_find_args(source_class, kwargs)
 
                 rhs_ident = get_rhs_ident(rel_field)

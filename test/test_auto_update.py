@@ -118,8 +118,12 @@ def test_has_functionality():
     cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
     print(cars_union.all())
 
-    car = Car.nodes.first()
-    print(car.owner.all_relationships())
+    car = Car.nodes.all()
+    print(len(car[0].owner.all_relationships()))
+    print(len(car[1].item.filter_relationships(Item.nodes.first(),
+        Q(Q(name__icontains='asdasd') | Q(name__icontains='asdasxc')))))
+
+    #  print(ItemCarRel.defined_properties(rels=False))
 
 
 
