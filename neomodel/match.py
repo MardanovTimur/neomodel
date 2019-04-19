@@ -488,8 +488,6 @@ class QueryBuilder(object):
 
         self._query_params[place_holder] = node.id
 
-        if self._return_fields:
-            ident += ', ' + self._return_fields
         self._ast['return'] = ident
         self._ast['result_class'] = node.__class__
         return ident
@@ -503,7 +501,7 @@ class QueryBuilder(object):
         self._ast['match'].append('({})'.format(ident_w_label))
 
         if self._return_fields:
-            self._ast['return'] = ident + ', ' + self._return_fields
+            self._ast['return'] = ident + ', ' + ', '.join(self._return_fields)
         else:
             self._ast['return'] = ident
         self._ast['result_class'] = nodeset.source
