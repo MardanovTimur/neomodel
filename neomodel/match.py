@@ -325,7 +325,14 @@ class QueryBuilder(object):
         if hasattr(node_set, 'no_label_in_ident'):
             self.no_label_in_ident = node_set.no_label_in_ident
 
+
+        # custom returnable fields
+        self._return_fields = None
+        if hasattr(node_set, '_return_fields'):
+            self._return_fields = ", ".join(node_set._return_fields)
+
     def build_ast(self):
+        print('build ast')
         self.build_source(self.node_set)
 
         if hasattr(self.node_set, '_extra_queries') and self.node_set._extra_queries['need']:
@@ -481,6 +488,8 @@ class QueryBuilder(object):
 
         self._query_params[place_holder] = node.id
 
+        if self._return_fields:
+            ident += ', ' + self._return_fields
         self._ast['return'] = ident
         self._ast['result_class'] = node.__class__
         return ident
@@ -492,7 +501,11 @@ class QueryBuilder(object):
         ident_w_label = ident if self.no_label_in_ident else \
                 ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
-        self._ast['return'] = ident
+
+        if self._return_fields:
+            self._ast['return'] = ident + ', ' + self._return_fields
+        else:
+            self._ast['return'] = ident
         self._ast['result_class'] = nodeset.source
         return ident
 
@@ -691,7 +704,9 @@ class QueryBuilder(object):
 
     def _count(self):
         return_count_query = 'DISTINCT ' if self._ast['distinct'] else ''
-        self._ast['return'] = 'count({})'.format(return_count_query + self._ast['return'])
+
+        #  self._ast['return'] = 'count({})'.format(return_count_query + self._ast['return'])
+        self._ast['return'] = 'count({})'.format("*")
         # drop order_by, results in an invalid query
         self._ast.pop('order_by', None)
         # drop limit & offset
@@ -849,6 +864,10 @@ class NodeSet(BaseSet):
         # for union operations (List[Type[UnionBlock]])
         self.union_operations = []
 
+        # for return aliases
+        self._return_fields = set()
+
+
     def extend_cypher(self, query, params={}):
         """
         Attrs:
@@ -869,6 +888,12 @@ class NodeSet(BaseSet):
 
         self.lookup += query
         self._query_params.update(params)
+        return self
+
+
+    def return_fields(self, fields):
+        for field in fields:
+            self._return_fields.add(field)
         return self
 
 

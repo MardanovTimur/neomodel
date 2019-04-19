@@ -85,8 +85,8 @@ def test_has_functionality():
 
     #  print(list(users))
 
-    #  print(Car.nodes.append_relationship("item").all())
-    #  Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).all()
+    print(len(Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).return_fields(['car_item', ])))
+    raise Exception("stop")
 
 
     #  print(Car.nodes.filter(Q()).all())
@@ -118,10 +118,12 @@ def test_has_functionality():
     cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
     print(cars_union.all())
 
-    car = Car.nodes.all()
-    print(len(car[0].owner.all_relationships()))
-    print(len(car[1].item.filter_relationships(Item.nodes.first(),
-        Q(Q(name__icontains='asdasd') | Q(name__icontains='asdasxc')))))
+    #  car = Car.nodes.filter()
+    #  car = car.return_fields(['car', ])
+    #  print(len(car))
+    #  print(len(car[0].owner.all_relationships()))
+    #  print(len(car[1].item.filter_relationships(Item.nodes.first(),
+    #      Q(Q(name__icontains='asdasd') | Q(name__icontains='asdasxc')))))
 
     #  print(ItemCarRel.defined_properties(rels=False))
 
