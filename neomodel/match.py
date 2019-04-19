@@ -329,10 +329,9 @@ class QueryBuilder(object):
         # custom returnable fields
         self._return_fields = None
         if hasattr(node_set, '_return_fields'):
-            self._return_fields = ", ".join(node_set._return_fields)
+            self._return_fields = ", ".join(list(node_set._return_fields))
 
     def build_ast(self):
-        print('build ast')
         self.build_source(self.node_set)
 
         if hasattr(self.node_set, '_extra_queries') and self.node_set._extra_queries['need']:
@@ -502,6 +501,7 @@ class QueryBuilder(object):
 
         if self._return_fields:
             self._ast['return'] = ident + ', ' + ', '.join(self._return_fields)
+            print(self._ast['return'])
         else:
             self._ast['return'] = ident
         self._ast['result_class'] = nodeset.source
