@@ -329,7 +329,7 @@ class QueryBuilder(object):
         # custom returnable fields
         self._return_fields = []
         if hasattr(node_set, '_return_fields'):
-            self._return_fields = ", ".join(list(node_set._return_fields))
+            self._return_fields = ", ".join(node_set._return_fields)
 
     def build_ast(self):
         self.build_source(self.node_set)
@@ -498,7 +498,6 @@ class QueryBuilder(object):
         ident_w_label = ident if self.no_label_in_ident else \
                 ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
-        print('build label', ident, self._return_fields)
         if self._return_fields:
             self._ast['return'] = ident + ', ' + self._return_fields
         else:
@@ -700,16 +699,22 @@ class QueryBuilder(object):
         return query
 
     def _count(self):
-        return_count_query = 'DISTINCT ' if self._ast['distinct'] else ''
+        return_operation = "RETURN"
+        return_string = self._ast['return']
+        if ',' in return_string:
+            return_operation = 'WITH'
+            self._ast['return'] = return_string + " RETURN count(*)"
+        else:
+            self._ast['return'] = 'count({})'.format(return_string)
 
-        #  self._ast['return'] = 'count({})'.format(return_count_query + self._ast['return'])
-        self._ast['return'] = 'count({})'.format("*")
+        #  self._ast['return'] = 'count({})'.format("*")
+
         # drop order_by, results in an invalid query
         self._ast.pop('order_by', None)
         # drop limit & offset
         limit = self._ast.pop('limit', None)
         skip = self._ast.pop('skip', None)
-        query = self.build_query()
+        query = self.build_query(return_operation)
         results, _ = db.cypher_query(query, self._query_params)
         # update it
         self._ast['limit'] = limit
@@ -862,7 +867,7 @@ class NodeSet(BaseSet):
         self.union_operations = []
 
         # for return aliases
-        self._return_fields = set()
+        self._return_fields = list()
 
 
     def extend_cypher(self, query, params={}):
@@ -889,8 +894,8 @@ class NodeSet(BaseSet):
 
 
     def return_fields(self, fields):
-        for field in fields:
-            self._return_fields.add(field)
+        assert isinstance(fields, list), "Fields should be the list type"
+        self._return_fields += fields
         return self
 
 
