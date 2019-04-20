@@ -327,7 +327,7 @@ class QueryBuilder(object):
 
 
         # custom returnable fields
-        self._return_fields = None
+        self._return_fields = []
         if hasattr(node_set, '_return_fields'):
             self._return_fields = ", ".join(list(node_set._return_fields))
 
@@ -498,9 +498,9 @@ class QueryBuilder(object):
         ident_w_label = ident if self.no_label_in_ident else \
                 ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
-
+        print('build label', ident, self._return_fields)
         if self._return_fields:
-            self._ast['return'] = ident + ', ' + ', '.join(self._return_fields)
+            self._ast['return'] = ident + ', ' + self._return_fields
         else:
             self._ast['return'] = ident
         self._ast['result_class'] = nodeset.source
@@ -689,7 +689,6 @@ class QueryBuilder(object):
         if self._ast['distinct']:
             query += "DISTINCT "
         # return ident
-        print(self._ast['return'])
         query += self._ast['return']
         if 'order_by' in self._ast and self._ast['order_by']:
             query += ' ORDER BY '

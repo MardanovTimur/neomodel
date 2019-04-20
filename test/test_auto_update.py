@@ -85,7 +85,7 @@ def test_has_functionality():
 
     #  print(list(users))
 
-    print(len(Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).return_fields(['car_item', ])))
+    print(Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).return_fields(['car_item', ]).all())
     raise Exception("stop")
 
 
