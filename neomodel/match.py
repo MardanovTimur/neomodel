@@ -325,7 +325,6 @@ class QueryBuilder(object):
         if hasattr(node_set, 'no_label_in_ident'):
             self.no_label_in_ident = node_set.no_label_in_ident
 
-
         # custom returnable fields
         self._return_fields = []
         if hasattr(node_set, '_return_fields'):
@@ -403,7 +402,6 @@ class QueryBuilder(object):
             return self.build_traversal(source)
         elif isinstance(source, NodeSet):
 
-
             if inspect.isclass(source.source) and issubclass(source.source, StructuredNode):
                 attrs = (source.source.__label__.lower(), source)
                 self.generate_union_query(*attrs)
@@ -446,8 +444,13 @@ class QueryBuilder(object):
             self._ast['with'] = '{}, rand() as r'.format(ident)
             self._ast['order_by'] = 'r'
         else:
-            self._ast['order_by'] = ['{}.{}'.format(ident, p)
-                                     for p in source._order_by]
+            self._ast['order_by'] = []
+            for p in source._order_by:
+                if p['ident']:
+                    self._ast['order_by'].append('{}.{}'.format(ident, p['name'] + p['type']))
+                else:
+                    self._ast['order_by'].append('{}'.format(p['name'] + p['type']))
+
 
     def build_traversal(self, traversal):
         """
@@ -496,7 +499,7 @@ class QueryBuilder(object):
         match nodes by a label
         """
         ident_w_label = ident if self.no_label_in_ident else \
-                ident + ':' + nodeset.source.__label__
+            ident + ':' + nodeset.source.__label__
         self._ast['match'].append('({})'.format(ident_w_label))
         if self._return_fields:
             self._ast['return'] = ident + ', ' + self._return_fields
@@ -644,7 +647,6 @@ class QueryBuilder(object):
         query = self.build_query_build_return(query, return_operation)
         return query
 
-
     @classmethod
     def gather_lookup_identations(cls, lookups):
         identations = ""
@@ -654,7 +656,6 @@ class QueryBuilder(object):
                 lookup_query += identations
             identations += ', ' + lookup_query.strip(' ').split(" ")[-1]
             yield lookup_query
-
 
     def build_query_build_lookup(self, query=''):
         if 'lookup' in self._ast and self._ast['lookup']:
@@ -760,6 +761,14 @@ class BaseSet(object):
 
     def __init__(self, *args, **kwargs):
         self.is_distinct = False
+        #  order_by = [
+        #    {
+        #      "field_name": "",
+        #      "type": "-",
+        #      "identation": True
+        #    },
+        #  ]
+        self._order_by = []
 
     def distinct(self, f=True):
         """
@@ -869,7 +878,6 @@ class NodeSet(BaseSet):
         # for return aliases
         self._return_fields = list()
 
-
     def extend_cypher(self, query, params={}):
         """
         Attrs:
@@ -892,12 +900,10 @@ class NodeSet(BaseSet):
         self._query_params.update(params)
         return self
 
-
     def return_fields(self, fields):
         assert isinstance(fields, list), "Fields should be the list type"
         self._return_fields += fields
         return self
-
 
     def to_q_filters(self, filters):
         return reduce(lambda initial, n: initial & Q(**{n[0]: n[1]}),
@@ -1024,8 +1030,6 @@ class NodeSet(BaseSet):
             self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
 
-
-
     def exclude(self, *args, **kwargs):
         """
         Exclude nodes from the NodeSet via filters.
@@ -1100,11 +1104,12 @@ class NodeSet(BaseSet):
         self._extra_queries['need'] = True
         return self
 
-    def order_by(self, *props):
+    def order_by(self, *props, **kwargs):
         """
         Order by properties. Prepend with minus to do descending. Pass None to
         remove ordering.
         """
+        pass_validation = kwargs.get('pass_validation', False)
         should_remove = len(props) == 1 and props[0] is None
         if not hasattr(self, '_order_by') or should_remove:
             self._order_by = []
@@ -1121,16 +1126,20 @@ class NodeSet(BaseSet):
                 else:
                     desc = False
 
-                if prop not in self.source_class.defined_properties(rels=False):
+                if not pass_validation and prop not in self.source_class.defined_properties(
+                        rels=False):
                     raise ValueError("No such property {} on {}".format(
                         prop, self.source_class.__name__))
 
-                property_obj = getattr(self.source_class, prop)
-                if isinstance(property_obj, AliasProperty):
-                    prop = property_obj.aliased_to()
-
-                self._order_by.append(prop + (' DESC' if desc else ''))
-
+                if not pass_validation:
+                    property_obj = getattr(self.source_class, prop)
+                    if isinstance(property_obj, AliasProperty):
+                        prop = property_obj.aliased_to()
+                self._order_by.append({
+                    "name": prop,
+                    "type": ' DESC ' if desc else '',
+                    "ident": not pass_validation,
+                })
         return self
 
 
@@ -1173,7 +1182,6 @@ def _generate_label_ns(type, **kwargs):
     inner_ident = inner_query_builder.node_set.source.__label__.lower()
     inner_query = inner_query_builder.build_query('WITH')
 
-
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
@@ -1182,7 +1190,6 @@ def _generate_label_ns(type, **kwargs):
         lhs=inner_ident,
         reverse=True,
         **kwargs['val'])
-
 
     # add lookup
     self._ast.setdefault('lookup', [])

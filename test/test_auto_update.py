@@ -79,7 +79,10 @@ def test_has_functionality():
     print(list(user_cars))
 
     users = User.nodes.filter()
-    cars = Car.nodes.has(item=items)
+    cars = Car.nodes.has(item=items).order_by('-prop', pass_validation=True)
+    print(list(cars))
+    raise Exception('stop')
+
     cars = cars.has(owner=users).distinct()
     print(list(cars))
 
