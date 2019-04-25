@@ -219,7 +219,7 @@ def process_filter_args(cls, kwargs):
     return output
 
 
-def process_has_args(builder, kwargs, operation):
+def process_has_args(builder, kwargs, is_not):
     """
     loop through has parameters check they correspond to class rels defined
     """
@@ -237,7 +237,7 @@ def process_has_args(builder, kwargs, operation):
         # get `key` definition from field
         definition = rel_definitions[key].definition
         # set parameters for build class, for create relationship query
-        update_matches(value, builder, key, definition, **kwargs)
+        update_matches(value, builder, key, definition, is_not, **kwargs)
 
 
 def process_union(nodeset, kwargs):
@@ -265,7 +265,7 @@ def process_union(nodeset, kwargs):
 
 
 @singledispatch
-def update_matches(argument, builder, key, definition, **kwargs):
+def update_matches(argument, builder, key, definition, *args, **kwargs):
     raise NotImplementedError("Type {} not implemented yet".format(type(argument)))
 
 
@@ -281,7 +281,7 @@ def generate_label(type, **kwargs):
 def _generate_label_sn(type, **kwargs):
     self = kwargs['self']
     supplicant = kwargs['label'].lower()[1:] + "_uid"
-    label = kwargs['label'] + f' {{ uid: ${supplicant}}}'
+    label = kwargs['label'] + ' {{ uid: ${}}}'.format(supplicant)
     where_relation = _rel_helper(
         lhs=kwargs['source_ident'],
         rhs=label,
@@ -293,7 +293,7 @@ def _generate_label_sn(type, **kwargs):
 
 
 @update_matches.register(bool)
-def _um_register(argument, builder, key, definition, **kwargs):
+def _um_register(argument, builder, key, definition, *args, **kwargs):
     """
     default match
     """
@@ -304,6 +304,7 @@ def _um_register(argument, builder, key, definition, **kwargs):
 
 
 class QueryBuilder(object):
+
     def __init__(self, node_set):
         self.node_set = node_set
         self._ast = {
@@ -451,7 +452,6 @@ class QueryBuilder(object):
                 else:
                     self._ast['order_by'].append('{}'.format(p['name'] + p['type']))
 
-
     def build_traversal(self, traversal):
         """
         traverse a relationship from a node to a set of nodes
@@ -515,13 +515,22 @@ class QueryBuilder(object):
                 label = ':' + val['node_class'].__label__
                 if attr == 'extra_match':
                     # insert value definitions in match
-                    generate_label(value['value'],
-                                   **{'val': val,
-                                      'source_ident': ident,
-                                      'label': label,
-                                      'value': value['value'],
-                                      'nodeset_origin': node_set,
-                                      'self': self})
+                    # value['value'] = nodeset in has keyword arguments
+                    # key - keyword in has argument
+                    # value - definition set
+                    # label - Relationship key definition field label
+                    # val - Relationship definition ('node_class', 'label', ...)
+                    # node_set - self nodeset
+                    props = {
+                        'val': val,
+                        'source_ident': ident,
+                        'label': label,
+                        'value': value['value'],
+                        'nodeset_origin': node_set,
+                        'self': self,
+                        'is_not': value.get('is_not', False),
+                    }
+                    generate_label(value['value'], **props)
                 else:
                     where_rel = _rel_helper(lhs=ident, rhs=label, ident='', **val)
                     stmt = [where_rel, ] if attr == 'must_match' else ['NOT ' + where_rel, ]
@@ -1047,8 +1056,8 @@ class NodeSet(BaseSet):
         Supports operation
          & or |
         """
-        operation = kwargs.pop('operation', '&')
-        process_has_args(self, kwargs, operation)
+        is_not = kwargs.pop('is_not', False)
+        process_has_args(self, kwargs, is_not=is_not)
         return self
 
     def union(self, **kwargs):
@@ -1145,12 +1154,15 @@ class NodeSet(BaseSet):
 
 @update_matches.register(NodeSet)
 @update_matches.register(StructuredNode)
-def _um_register(argument, builder, key, definition, **kwargs):
+def _um_register(argument, builder, key, definition, *args, **kwargs):
+    if isinstance(argument, NodeSet) and args:
+        not_condition = {'is_not': args[0]}
     builder.extra_match[key] = {
         'definition': definition,
         'type': type(argument),
         'value': argument,
         'operation': ' OR ' if 'operation' in kwargs and kwargs['operation'] == '|' else ' AND ',
+        **not_condition,
     }
 
 
@@ -1175,6 +1187,7 @@ def _generate_label_iterable_collections(type, **kwargs):
 def _generate_label_ns(type, **kwargs):
     # if in `has()` argument type is `NodeSet`
     # query_params, build_query()
+    is_not_linked = kwargs['is_not']
     self = kwargs['self']
 
     # NodeSet query builder (in `has` function)
@@ -1196,7 +1209,10 @@ def _generate_label_ns(type, **kwargs):
     self._ast['lookup'].append(inner_query)
 
     # add connection
-    self._ast['match'] += [match_relation, ]
+    if not is_not_linked:
+        self._ast['match'].append(match_relation)
+    else:
+        self._ast['where'].append("NOT EXISTS (" + match_relation + ")")
 
     # union query params of two nodesets
     self._query_params.update(inner_query_builder._query_params)
