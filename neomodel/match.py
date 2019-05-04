@@ -1155,6 +1155,7 @@ class NodeSet(BaseSet):
 @update_matches.register(NodeSet)
 @update_matches.register(StructuredNode)
 def _um_register(argument, builder, key, definition, *args, **kwargs):
+    not_condition = {}
     if isinstance(argument, NodeSet) and args:
         not_condition = {'is_not': args[0]}
     builder.extra_match[key] = {
