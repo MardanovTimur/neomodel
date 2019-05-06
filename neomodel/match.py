@@ -404,7 +404,7 @@ class QueryBuilder(object):
         elif isinstance(source, NodeSet):
 
             if inspect.isclass(source.source) and issubclass(source.source, StructuredNode):
-                attrs = (source.source.__label__.lower(), source)
+                attrs = (source.ident, source)
                 self.generate_union_query(*attrs)
                 ident = self.build_label(*attrs)
             else:
@@ -797,6 +797,10 @@ class BaseSet(object):
             return qb._execute_multiple()
         return qb._execute()
 
+    @property
+    def ident(self):
+        return self.source.__label__.lower()
+
     def __iter__(self):
         return (i for i in self.query_cls(self).build_ast()._execute())
 
@@ -903,7 +907,7 @@ class NodeSet(BaseSet):
 
         assert 'WITH' in query, 'query should contains and returns WITH statement'
 
-        query += " AS {}".format(self.source.__label__.lower())
+        query += " AS {}".format(self.ident)
 
         self.lookup += query
         self._query_params.update(params)
@@ -1093,7 +1097,7 @@ class NodeSet(BaseSet):
         if isinstance(self.source, Traversal):
             ident = self.source.target_class.__label__.lower()
         else:
-            ident = self.source.__label__.lower()
+            ident = self.ident
         rhs_ident = get_rhs_ident(field)
         rel_ident = "{}_{}".format(ident, rhs_ident.lower())
         self._extra_queries['match'].append(
@@ -1193,7 +1197,7 @@ def _generate_label_ns(type, **kwargs):
 
     # NodeSet query builder (in `has` function)
     inner_query_builder = type.query_builder
-    inner_ident = inner_query_builder.node_set.source.__label__.lower()
+    inner_ident = inner_query_builder.node_set.ident
     inner_query = inner_query_builder.build_query('WITH')
 
     # insert into origin nodeset `match` option
