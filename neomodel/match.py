@@ -1100,12 +1100,13 @@ class NodeSet(BaseSet):
             ident = self.ident
         rhs_ident = get_rhs_ident(field)
         rel_ident = "{}_{}".format(ident, rhs_ident.lower())
-        self._extra_queries['match'].append(
-            _rel_helper(
-                ident,
-                "{type}_node:{label}".format(type=rel_ident, label=rhs_ident),
-                rel_ident,
-                field.definition['relation_type']))
+        rel_query = _rel_helper(ident,
+                                "{type}_node:{label}".format(type=rel_ident, label=rhs_ident),
+                                rel_ident,
+                                field.definition['relation_type'])
+        extra_match_set = set(self._extra_queries['match'])
+        extra_match_set |= set((rel_query, ))
+        self._extra_queries['match'] = list(extra_match_set)
         self._extra_queries['need'] = True
         return self
 
