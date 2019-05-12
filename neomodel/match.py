@@ -346,7 +346,7 @@ class QueryBuilder(object):
     def build_extra_ast(self, extra):
         quote = ','
         if extra['match']:
-            self._ast['match'] += list(extra['match'])
+            self._ast['match'] = list(set(self._ast['match']) | set(extra['match']))
         if extra.get('return') is not None:
             self._ast['return'] = extra['return']
 
@@ -1101,7 +1101,7 @@ class NodeSet(BaseSet):
         rhs_ident = get_rhs_ident(field)
         rel_ident = "{}_{}".format(ident, rhs_ident.lower())
         rel_query = _rel_helper(ident,
-                                "{type}_node:{label}".format(type=rel_ident, label=rhs_ident),
+                                ":{label}".format(label=rhs_ident),
                                 rel_ident,
                                 field.definition['relation_type'])
         extra_match_set = set(self._extra_queries['match'])
