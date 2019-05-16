@@ -114,6 +114,60 @@ class RelationshipManager(object):
 
         return rel_instance
 
+
+    @check_source
+    def connect_nodeset(self, nodeset, properties=None, inflate_rels=True):
+        if not self.definition['model'] and properties:
+            raise NotImplementedError(
+                "Relationship properties without using a relationship model "
+                "is no longer supported."
+            )
+
+        params = {}
+        rel_model = self.definition['model']
+        rp = None  # rel_properties
+
+        if rel_model:
+            rp = {}
+            # need to generate defaults etc to create fake instance
+            tmp = rel_model(**properties) if properties else rel_model()
+            # build params and place holders to pass to rel_helper
+            for p, v in rel_model.deflate(tmp.__properties__).items():
+                rp[p] = '{' + p + '}'
+                params[p] = v
+
+            if hasattr(tmp, 'pre_save'):
+                tmp.pre_save()
+
+        new_rel = _rel_helper(lhs='us', rhs=nodeset.ident, ident='r',
+                              relation_properties=rp, **self.definition)
+
+        qb = nodeset.query_builder
+        nodeset_query = qb.build_query(return_operation="WITH")
+        nodeset_params = qb._query_params
+
+        q = nodeset_query + " MATCH ({})".format(nodeset.ident) + \
+                ", (us) WHERE id(us)={self} CREATE UNIQUE" + new_rel
+
+        # update the nodeset params
+        params.update(nodeset_params)
+
+        if not rel_model:
+            self.source.cypher(q, params)
+            return True
+
+
+        rels_ = self.source.cypher(q + " RETURN r", params)[0][0]
+
+        if inflate_rels:
+            rel_instance = [self._set_start_end_cls(rel_model.inflate(rel_), nodeset.source) for rel_ in rels_]
+
+            if hasattr(rel_instance, 'post_save'):
+                rel_instance.post_save()
+
+            return rel_instance
+        return True
+
     @check_source
     def replace(self, node, properties=None):
         """

@@ -1,3 +1,6 @@
+import os
+import logging
+
 from neomodel import db, config
 from neomodel.match_q import Q
 from neomodel.match import NodeSet
@@ -13,8 +16,6 @@ from neomodel import (
     DateTimeProperty,
     install_all_labels,
 )
-import os
-import logging
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -83,6 +84,9 @@ def test_has_functionality():
     cars = cars.has(owner=users, is_not=True).distinct()
     print(list(cars))
 
+
+    user.car.connect_nodeset(Car.nodes.filter())
+
     #  print(list(users))
 
     #  print(len(Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).distinct().return_fields(['car_item', ])))
@@ -115,7 +119,8 @@ def test_has_functionality():
     results, _ = db.cypher_query(query, {'params': {'swag': "asdasd"}})
     print(results)
 
-    cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
+    cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), \
+            owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
     print(cars_union.all())
 
     #  car = Car.nodes.filter()
