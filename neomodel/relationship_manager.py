@@ -61,6 +61,11 @@ class RelationshipManager(object):
         if not hasattr(obj, 'id'):
             raise ValueError("Can't perform operation on unsaved node " + repr(obj))
 
+    def _check_nodeset(self, obj):
+        """check for valid nodeset i.e correct class and is saved"""
+        if not issubclass(obj.source, self.definition['node_class']):
+            raise ValueError("Expected node of class " + self.definition['node_class'].__name__)
+
     @check_source
     def connect(self, node, properties=None):
         """
@@ -117,6 +122,8 @@ class RelationshipManager(object):
 
     @check_source
     def connect_nodeset(self, nodeset, properties=None, inflate_rels=True):
+        self._check_nodeset(nodeset)
+
         if not self.definition['model'] and properties:
             raise NotImplementedError(
                 "Relationship properties without using a relationship model "
