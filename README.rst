@@ -33,7 +33,7 @@ Available on readthedocs_.
 Requirements
 ============
 
-- Python 2.7, 3.4+
+- Python 3.6+
 - neo4j 3.0, 3.1, 3.2, 3.3
 
 Installation
@@ -41,11 +41,11 @@ Installation
 
 Install from pypi (recommended)::
 
-    $ pip install neomodel
+    $ pip install neomodel-next
 
 To install from github::
 
-    $ pip install git+git://github.com/neo4j-contrib/neomodel.git@HEAD#egg=neomodel-dev
+    $ pip install git+git://github.com/MardanovTimur/neomodel-next.git@HEAD#egg=neomodel-next-master
 
 Upgrading 2.x to 3.x
 ====================

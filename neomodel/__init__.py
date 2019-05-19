@@ -21,4 +21,4 @@ __pauthor__ = 'Timur Mardanov'
 __email__ = 'robin.ge@gmail.com'
 __license__ = 'MIT'
 __package__ = 'neomodel'
-__version__ = pkg_resources.get_distribution('neomodel').version
+__version__ = pkg_resources.get_distribution('neomodel-next').version
