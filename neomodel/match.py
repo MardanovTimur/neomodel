@@ -575,7 +575,7 @@ class QueryBuilder(object):
                 matches, q_childs = self._parse_q_filters(ident, child, source_class, matches)
                 if child.connector == Q.OR:
                     q_childs = "(" + q_childs + ")"
-                target.append(q_childs)
+                target.append(q_childs) if q_childs else None
             else:
                 # for identation of relationship fields or not
                 operator = ident
