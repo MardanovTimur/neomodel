@@ -164,7 +164,11 @@ class RelationshipManager(object):
             return True
 
 
-        rels_ = self.source.cypher(q + " RETURN r", params)[0][0]
+        rels_ = self.source.cypher(q + " RETURN r", params)
+        if rels_ and rels_[0]:
+            rels_ = rels_[0][0]
+        else:
+            return []
 
         if inflate_rels:
             rel_instance = [self._set_start_end_cls(rel_model.inflate(rel_), nodeset.source) for rel_ in rels_]
