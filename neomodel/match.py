@@ -313,8 +313,8 @@ class QueryBuilder(object):
             'lookup': [],
             'distinct': node_set.is_distinct,
         }
-        if hasattr(node_set, 'lookup') and node_set.lookup is not None:
-            self._ast['lookup'].append(node_set.lookup)
+        if hasattr(node_set, 'lookup') and node_set.lookup is not None and node_set.lookup:
+            self._ast['lookup'].append(node_set.lookup.strip(" "))
         self._query_params = {}
         if hasattr(node_set, '_query_params'):
             self._query_params = node_set._query_params
@@ -658,18 +658,21 @@ class QueryBuilder(object):
 
     @classmethod
     def gather_lookup_identations(cls, lookups):
-        identations = ""
+        """ TODO: rewrite this. Get alias after WITH construction only
+        """
+        quote = ', '
+        lookup_identations = set()
         for indice, lookup_query in enumerate(lookups):
+            lookup_self_ident  = lookup_query.strip(' ').split(" ")[-1]
             if indice > 0:
-                # append after first lookup query
-                lookup_query += identations
-            identations += ', ' + lookup_query.strip(' ').split(" ")[-1]
+                lookup_query += quote + quote.join(lookup_identations)
+            lookup_identations.add(lookup_self_ident)
             yield lookup_query
 
     def build_query_build_lookup(self, query=''):
         if 'lookup' in self._ast and self._ast['lookup']:
-            lookups = filter(lambda lookup: lookup, self._ast['lookup'])
-            lookups = self.gather_lookup_identations(lookups)
+            #  lookups = filter(lambda lookup: lookup, self._ast['lookup'])
+            lookups = self.gather_lookup_identations(self._ast['lookup'])
             query += "\n".join(lookups)
         return query
 
@@ -910,6 +913,7 @@ class NodeSet(BaseSet):
         query += " AS {}".format(self.ident)
 
         self.lookup += query
+
         self._query_params.update(params)
         return self
 
@@ -1212,7 +1216,8 @@ def _generate_label_ns(type, **kwargs):
 
     # add lookup
     self._ast.setdefault('lookup', [])
-    self._ast['lookup'].append(inner_query)
+    if inner_query:
+        self._ast['lookup'].append(inner_query)
 
     # add connection
     if not is_not_linked:

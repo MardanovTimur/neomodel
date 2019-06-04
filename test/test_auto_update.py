@@ -81,11 +81,12 @@ def test_has_functionality():
 
     users = User.nodes.filter()
     cars = Car.nodes.has(item=items, is_not=True)
+    cars = cars.extend_cypher('MATCH (n:Coffee) WHERE n.id = $coffee_id WITH n', {'coffee_id': 1})
     cars = cars.has(owner=users, is_not=True).distinct()
     print(list(cars))
 
 
-    user.car.connect_nodeset(Car.nodes.filter(Q(name='assdasdsaddasdasda')), inflate_rels=False)
+    #  user.car.connect_nodeset(Car.nodes.filter(Q(name='assdasdsaddasdasda')), inflate_rels=False)
 
     #  print(list(users))
 
