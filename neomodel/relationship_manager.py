@@ -365,6 +365,11 @@ class RelationshipManager(object):
             "MATCH " + rel + " DELETE r"
         self.source.cypher(q, {'them': node.id})
 
+        rel_model = self.definition['model']
+
+        if hasattr(rel_model, 'post_disconnect'):
+            rel_model.post_disconnect(node)
+
     @check_source
     def disconnect_all(self):
         """
