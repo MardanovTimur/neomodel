@@ -86,6 +86,10 @@ def test_has_functionality():
     print(list(cars))
 
 
+    cars = User.nodes.first().car.filter()
+    print(Item.nodes.has(car=cars.filter()).all())
+
+
     #  user.car.connect_nodeset(Car.nodes.filter(Q(name='assdasdsaddasdasda')), inflate_rels=False)
 
     #  print(list(users))
@@ -123,6 +127,8 @@ def test_has_functionality():
     cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), \
             owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
     print(cars_union.all())
+
+
 
     #  car = Car.nodes.filter()
     #  car = car.return_fields(['car', ])
