@@ -667,8 +667,8 @@ class QueryBuilder(object):
         regex_exp = '(?P<matches>MATCH.*?WITH)'
         re_comp = re.compile(regex_exp, re.MULTILINE)
         re_matches = [list(re_comp.finditer(lookup.replace('\r', '')
-                                            .replace('\n', ''))) for lookup in lookups]
-        lookups = []
+                .replace('\n', ''))) for lookup in lookups[1:]]
+        lookups = [lookups[0], ] if len(lookups) else []
         for re_match in re_matches:
             if len(re_match) > 1:
                 looks = []
