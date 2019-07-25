@@ -662,8 +662,27 @@ class QueryBuilder(object):
         """
         quote = ', '
         lookup_identations = set()
+
+        # Pre compile
+        regex_exp = '(?P<matches>MATCH.*?WITH)'
+        re_comp = re.compile(regex_exp, re.MULTILINE)
+        re_matches = [list(re_comp.finditer(lookup.replace('\r', '')
+                                            .replace('\n', ''))) for lookup in lookups]
+        lookups = []
+        for re_match in re_matches:
+            if len(re_match) > 1:
+                looks = []
+                initial_string = re_match[0].string
+                begin_indices = [match.span()[0] for match in re_match[1:]]
+                for ind in begin_indices:
+                    lookups.append(initial_string[:ind])
+                lookups.append(initial_string[ind:])
+                # logic here
+            elif len(re_match) == 1:
+                lookups.append(re_match[0].string)
+
         for indice, lookup_query in enumerate(lookups):
-            lookup_self_ident  = lookup_query.strip(' ').split(" ")[-1]
+            lookup_self_ident = lookup_query.strip(' ').split(" ")[-1]
             if indice > 0:
                 lookup_query += quote + quote.join(lookup_identations)
             lookup_identations.add(lookup_self_ident)
@@ -673,7 +692,7 @@ class QueryBuilder(object):
         if 'lookup' in self._ast and self._ast['lookup']:
             #  lookups = filter(lambda lookup: lookup, self._ast['lookup'])
             lookups = self.gather_lookup_identations(self._ast['lookup'])
-            query += "\n".join(lookups)
+            query += " ".join(lookups)
         return query
 
     def build_query_build_match(self, query=''):

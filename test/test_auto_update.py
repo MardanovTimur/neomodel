@@ -85,9 +85,14 @@ def test_has_functionality():
     cars = cars.has(owner=users, is_not=True).distinct()
     print(list(cars))
 
-
+    query = """
+    MATCH (item: Item)
+    WITH item
+    """
     cars = User.nodes.first().car.filter()
-    print(Item.nodes.has(car=cars).all())
+    items = Item.nodes.has(car=cars)
+    items = items.extend_cypher(query)
+    print(items.all())
 
 
     #  user.car.connect_nodeset(Car.nodes.filter(Q(name='assdasdsaddasdasda')), inflate_rels=False)
