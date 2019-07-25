@@ -805,7 +805,7 @@ class BaseSet(object):
         """ Returns the ident from BaseClass of NodeSet
         """
         if isinstance(self.source, Traversal):
-            return self.source.source_class.__label__.lower()
+            return self.source.definition['node_class'].__label__.lower()
         return self.source.__label__.lower()
 
     def __iter__(self):

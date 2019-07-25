@@ -87,7 +87,7 @@ def test_has_functionality():
 
 
     cars = User.nodes.first().car.filter()
-    print(Item.nodes.has(car=cars.filter()).all())
+    print(Item.nodes.has(car=cars).all())
 
 
     #  user.car.connect_nodeset(Car.nodes.filter(Q(name='assdasdsaddasdasda')), inflate_rels=False)
