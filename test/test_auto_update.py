@@ -1,7 +1,7 @@
 import os
 import logging
 
-from neomodel import db, config, IntegerProperty
+from neomodel import db, config, IntegerProperty, JsonArrayProperty
 from neomodel.match_q import Q
 from neomodel.match import NodeSet
 from neomodel.cardinality import ZeroOrOne
@@ -37,6 +37,8 @@ class Car(StructuredNode):
     owner = RelationshipTo('User', 'OWN', ZeroOrOne)
     item = RelationshipTo('Item', 'U', ZeroOrMore, model=ItemCarRel)
 
+    ses = JsonArrayProperty(type=float)
+
     CHOICES = {
         0: "asd",
         1: "2313",
@@ -63,7 +65,7 @@ def test_has_functionality():
     h = Car(name='hyndau').save()
 
 
-    m = Car(name='super car', integer_choices=1).save()
+    m = Car(name='super car', integer_choices=1, ses=[1,2]).save()
 
     item = Item().save()
     m.item.connect(item)

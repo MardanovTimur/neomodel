@@ -545,9 +545,10 @@ class JsonArrayProperty(Property):
                 self.iterate_inn(i)
             else:
                 exception = Exception("Incorrect type {i}".format(i=i))
-                if self.type in (int, float):
-                    if not isinstance(i, (int, float)):
+                if self.type in (int, float, np.int64, np.float64):
+                    if not isinstance(i, (int, float, np.int64, np.float64)):
                         raise exception
+                    continue
                 if not isinstance(i, self.type):
                     raise exception
 
