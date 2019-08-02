@@ -1,7 +1,7 @@
 import os
 import logging
 
-from neomodel import db, config
+from neomodel import db, config, IntegerProperty
 from neomodel.match_q import Q
 from neomodel.match import NodeSet
 from neomodel.cardinality import ZeroOrOne
@@ -37,6 +37,13 @@ class Car(StructuredNode):
     owner = RelationshipTo('User', 'OWN', ZeroOrOne)
     item = RelationshipTo('Item', 'U', ZeroOrMore, model=ItemCarRel)
 
+    CHOICES = {
+        0: "asd",
+        1: "2313",
+    }
+
+    integer_choices = IntegerProperty(choices=CHOICES)
+
     datetime_auto_update = DateTimeProperty(default_now=True, auto_update=True)
 
 
@@ -54,6 +61,9 @@ def test_has_functionality():
     m = Car(name='maserrati').save()
     l = Car(name='lamborgini').save()
     h = Car(name='hyndau').save()
+
+
+    m = Car(name='super car', integer_choices=1).save()
 
     item = Item().save()
     m.item.connect(item)

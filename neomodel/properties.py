@@ -325,12 +325,27 @@ class IntegerProperty(Property):
     """
     form_field_class = 'IntegerField'
 
+    def __init__(self, choices=None, *args, **kwargs):
+        super(IntegerProperty, self).__init__(*args, **kwargs)
+
+        if choices is None:
+            self.choices = None
+        else:
+            try:
+                self.choices = dict(choices)
+            except Exception:
+                raise ValueError("The choices argument must be convertable to "
+                                 "a dictionary.")
+
     @validator
     def inflate(self, value):
         return int(value)
 
     @validator
     def deflate(self, value):
+        if self.choices is not None:
+            if value not in self.choices.keys():
+                raise AttributeError("Cannot deflate choice value.")
         return int(value)
 
     def default_value(self):
@@ -529,8 +544,12 @@ class JsonArrayProperty(Property):
             if isinstance(i, (list, np.ndarray, tuple)):
                 self.iterate_inn(i)
             else:
+                exception = Exception("Incorrect type {i}".format(i=i))
+                if self.type in (int, float):
+                    if not isinstance(i, (int, float)):
+                        raise exception
                 if not isinstance(i, self.type):
-                    raise Exception("Incorrect type {i}".format(i=i))
+                    raise exception
 
     @validator
     def deflate(self, value):
