@@ -447,10 +447,12 @@ class QueryBuilder(object):
         else:
             self._ast['order_by'] = []
             for p in source._order_by:
+                order_by_argument = p['name'] + p['type']
                 if p['ident']:
-                    self._ast['order_by'].append('{}.{}'.format(ident, p['name'] + p['type']))
-                else:
-                    self._ast['order_by'].append('{}'.format(p['name'] + p['type']))
+                    order_by_argument = '{}.{}'.format(ident, order_by_argument)
+                    if order_by_argument in self._ast['order_by']:
+                        continue
+                self._ast['order_by'].append(order_by_argument)
 
     def build_traversal(self, traversal):
         """
@@ -656,6 +658,16 @@ class QueryBuilder(object):
         query = self.build_query_build_return(query, return_operation)
         return query
 
+
+    def build_delete_query(self):
+        query = self.build_query_build_lookup()
+        query = self.build_query_build_match(query)
+        query = self.build_query_build_where(query)
+        query = self.build_query_build_with(query)
+        query = self.build_query_build_delete(query)
+        return query
+
+
     @classmethod
     def gather_lookup_identations(cls, lookups):
         """ TODO: rewrite this. Get alias after WITH construction only
@@ -667,7 +679,7 @@ class QueryBuilder(object):
         regex_exp = '(?P<matches>MATCH.*?WITH)'
         re_comp = re.compile(regex_exp, re.MULTILINE)
         re_matches = [list(re_comp.finditer(lookup.replace('\r', '')
-                .replace('\n', ''))) for lookup in lookups[1:]]
+                                            .replace('\n', ''))) for lookup in lookups[1:]]
         lookups = [lookups[0], ] if len(lookups) else []
         for re_match in re_matches:
             if len(re_match) > 1:
@@ -723,11 +735,31 @@ class QueryBuilder(object):
         query += self._ast['return']
         if 'order_by' in self._ast and self._ast['order_by']:
             query += ' ORDER BY '
-            query += ', '.join(self._ast['order_by'])
+            query += ', '.join(list(self._ast['order_by']))
         if 'skip' in self._ast:
             query += ' SKIP {0:d}'.format(self._ast['skip'])
         if 'limit' in self._ast:
             query += ' LIMIT {0:d}'.format(self._ast['limit'])
+        return query
+
+    def build_query_build_delete(self, query=''):
+        # set DISTINCT or ''
+        query += " WITH "
+        if self._ast['distinct']:
+            query += " DISTINCT "
+        # return ident
+        query += self._ast['return']
+
+        # set WITH or RETURN value
+        if 'order_by' in self._ast and self._ast['order_by']:
+            query += ' ORDER BY '
+            query += ', '.join(list(self._ast['order_by']))
+        if 'skip' in self._ast:
+            query += ' SKIP {0:d}'.format(self._ast['skip'])
+        if 'limit' in self._ast:
+            query += ' LIMIT {0:d}'.format(self._ast['limit'])
+
+        query += ' DETACH DELETE ' + self._ast['return']
         return query
 
     def _count(self):
@@ -771,6 +803,10 @@ class QueryBuilder(object):
         if results:
             return [n[0] for n in results]
         return []
+
+    def _delete(self):
+        query = self.build_delete_query()
+        results, _ = db.cypher_query(query, self._query_params)
 
     def _execute_multiple(self, resolve_objects=True):
         query = self.build_query()
@@ -818,6 +854,9 @@ class BaseSet(object):
         if multiple:
             return qb._execute_multiple()
         return qb._execute()
+
+    def delete(self):
+        qb = self.query_cls(self).build_ast()._delete()
 
     @property
     def ident(self):
@@ -1069,6 +1108,7 @@ class NodeSet(BaseSet):
         if args or kwargs:
             self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
+
 
     def exclude(self, *args, **kwargs):
         """

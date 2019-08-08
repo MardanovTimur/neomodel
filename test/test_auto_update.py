@@ -95,7 +95,9 @@ def test_has_functionality():
     cars = Car.nodes.has(item=items, is_not=True)
     cars = cars.extend_cypher('MATCH (n:Coffee) WHERE n.id = $coffee_id WITH n', {'coffee_id': 1})
     cars = cars.has(owner=users, is_not=True).distinct()
-    print(list(cars))
+    cars = cars.order_by('name').order_by('name').order_by('-name').order_by('name')
+    cars.delete()
+    raise Exception('stop')
 
     query = """
     MATCH (item: Item)
