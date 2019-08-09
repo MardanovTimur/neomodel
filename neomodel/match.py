@@ -246,8 +246,6 @@ def process_union(nodeset, kwargs):
         nodeset: source nodeset
         kwargs - params
     """
-    assert len(kwargs.items()) > 1, 'Union function may union greater or equal than 2 nodesets'
-
     # source model
     cls = nodeset.source_class
     # all relationships from model
@@ -260,8 +258,18 @@ def process_union(nodeset, kwargs):
         rel_definitions[key]._lookup_node_class()
         # get `key` definition from field
         definition = rel_definitions[key].definition
-        union_block = UnionBlock(nodeset, key, definition, kwargs[key], source_model=cls)
-        nodeset.union_operations.append(union_block)
+
+        assert isinstance(value, (list, tuple, BaseSet)), 'TypeError'
+
+        if isinstance(value, (list, tuple)):
+            for val_nodeset in value:
+                union_block = UnionBlock(nodeset, key, definition, val_nodeset,
+                                         source_model=cls)
+                nodeset.union_operations.append(union_block)
+        else:
+            union_block = UnionBlock(nodeset, key, definition, value,
+                                     source_model=cls)
+            nodeset.union_operations.append(union_block)
 
 
 @singledispatch
@@ -658,7 +666,6 @@ class QueryBuilder(object):
         query = self.build_query_build_return(query, return_operation)
         return query
 
-
     def build_delete_query(self):
         query = self.build_query_build_lookup()
         query = self.build_query_build_match(query)
@@ -666,7 +673,6 @@ class QueryBuilder(object):
         query = self.build_query_build_with(query)
         query = self.build_query_build_delete(query)
         return query
-
 
     @classmethod
     def gather_lookup_identations(cls, lookups):
@@ -1108,7 +1114,6 @@ class NodeSet(BaseSet):
         if args or kwargs:
             self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
-
 
     def exclude(self, *args, **kwargs):
         """

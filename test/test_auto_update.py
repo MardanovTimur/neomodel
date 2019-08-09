@@ -96,8 +96,7 @@ def test_has_functionality():
     cars = cars.extend_cypher('MATCH (n:Coffee) WHERE n.id = $coffee_id WITH n', {'coffee_id': 1})
     cars = cars.has(owner=users, is_not=True).distinct()
     cars = cars.order_by('name').order_by('name').order_by('-name').order_by('name')
-    cars.delete()
-    raise Exception('stop')
+    #  cars.delete()
 
     query = """
     MATCH (item: Item)
@@ -114,7 +113,7 @@ def test_has_functionality():
     #  print(list(users))
 
     #  print(len(Car.nodes.filter(Q(item__name__icontains='fire') | Q(item__name__contains='asdsad') | Q(name__icontains='maser')).distinct().return_fields(['car_item', ])))
-    raise Exception("stop")
+    #  raise Exception("stop")
 
 
     #  print(Car.nodes.filter(Q()).all())
@@ -145,6 +144,11 @@ def test_has_functionality():
 
     cars_union = Car.nodes.union(item=Item.nodes.filter(car__name__exact='asdasd'), \
             owner=User.nodes.has(car=Car.nodes.filter())).filter(name__icontains='asdasd')
+    print(cars_union.all())
+
+
+    cars_union = Car.nodes.union(item=[Item.nodes.filter(car__name__exact='asdsad'),
+        Item.nodes.filter(uid='asdqwe')])
     print(cars_union.all())
 
 
