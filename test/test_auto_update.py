@@ -23,10 +23,13 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 class ItemCarRel(StructuredRel):
     name = StringProperty()
 
+class UserCarRel(StructuredRel):
+    vag = StringProperty()
+
 
 class User(StructuredNode):
     username = StringProperty()
-    car = RelationshipFrom('Car', 'OWN', ZeroOrMore)
+    car = RelationshipFrom('Car', 'OWN', ZeroOrMore, UserCarRel)
 
 
 class Item(StructuredNode):
@@ -34,7 +37,7 @@ class Item(StructuredNode):
 
 class Car(StructuredNode):
     name = StringProperty()
-    owner = RelationshipTo('User', 'OWN', ZeroOrOne)
+    owner = RelationshipTo('User', 'OWN', ZeroOrOne, UserCarRel)
     item = RelationshipTo('Item', 'U', ZeroOrMore, model=ItemCarRel)
 
     ses = JsonArrayProperty(type=float)
@@ -152,9 +155,8 @@ def test_has_functionality():
     print(cars_union.all())
 
     user = User.nodes.first()
-    car = user.car.single()
-    print(car)
-    user.car.disconnect(Q(name='super car'))
+    cars = Car.nodes.filter()
+    user.car.disconnect(cars)
     print(user.car.single())
 
 

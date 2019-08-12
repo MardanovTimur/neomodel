@@ -381,15 +381,27 @@ class RelationshipManager(object):
         elif len(args) == 1 and isinstance(args[0], Q):
             # if Q based filters provided
             node_class = self.definition['node_class']
-            qb = self.source.nodes.query_builder
-            match, filters = qb._parse_q_filters('b', args[0], node_class)
-            rel = _rel_helper(lhs='a',
-                              rhs='b:' + node_class.__label__,
-                              ident='r',
-                              **self.definition)
+            qb = node_class.nodes.query_builder
+            try:
+                match, filters = qb._parse_q_filters('b', args[0],
+                                                     self.source_class, [])
+            except:
+                match = []
+            if len(match) == 0:
+                qb = self.source_class.nodes.query_builder
+                match, filters = qb._parse_q_filters('b', args[0],
+                                                     node_class, [])
+                rel = _rel_helper(lhs='a',
+                                  rhs='b:' + node_class.__label__,
+                                  ident='r',
+                                  **self.definition)
+                q = "MATCH (a) WHERE id(a)={self} " \
+                    "MATCH " + rel + " WHERE " + filters + " DELETE r"
+            else:
+                q = "MATCH (a) WHERE id(a)={self} " \
+                    "MATCH " + " ".join(match) + " WHERE " + \
+                    filters + " DELETE b_" + self.name
 
-            q = "MATCH (a) WHERE id(a)={self} " \
-                "MATCH " + rel +" WHERE " + filters  + " DELETE r"
             params = qb._query_params
             self.source.cypher(q, params)
 
@@ -397,6 +409,31 @@ class RelationshipManager(object):
 
             if hasattr(rel_model, 'post_disconnect'):
                 rel_model.post_disconnect(node_class.nodes.filter(args[0]))
+        elif len(args) == 1 and isinstance(args[0], NodeSet):
+            # if NodeSet provided
+            node_class = self.definition['node_class']
+            nodeset = args[0]
+            assert nodeset.source == node_class, 'class error'
+
+            qb = nodeset.query_builder
+            query, params = qb.build_query('WITH'), qb._query_params
+            self._query_params.update(params)
+
+            rel = _rel_helper(lhs='a',
+                              rhs=nodeset.ident,
+                              ident='r',
+                              **self.definition)
+
+            query += " MATCH (a), " + rel + " WHERE id(a)={self} DELETE r;"
+
+            self.source.cypher(query, params)
+
+            rel_model = self.definition['model']
+
+            if hasattr(rel_model, 'post_disconnect'):
+                rel_model.post_disconnect(node_class.nodes.filter(args[0]))
+        else:
+            raise NotImplementedError('This operation not implemented yet')
 
     @check_source
     def disconnect_all(self):
