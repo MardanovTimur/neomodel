@@ -151,6 +151,13 @@ def test_has_functionality():
         Item.nodes.filter(uid='asdqwe')])
     print(cars_union.all())
 
+    user = User.nodes.first()
+    car = user.car.single()
+    print(car)
+    user.car.disconnect(Q(name='super car'))
+    print(user.car.single())
+
+
 
 
     #  car = Car.nodes.filter()

@@ -7,7 +7,7 @@ from .match import OUTGOING, INCOMING, EITHER, _rel_helper, Traversal, NodeSet, 
 from .relationship import StructuredRel
 from .match import TraversalRelationships, _UNARY_OPERATORS
 from .match_q import QBase, Q
-
+from .core import StructuredNode
 
 
 # basestring python 3.x fallback
@@ -119,7 +119,6 @@ class RelationshipManager(object):
 
         return rel_instance
 
-
     @check_source
     def connect_nodeset(self, nodeset, properties=None, inflate_rels=True):
         self._check_nodeset(nodeset)
@@ -154,7 +153,7 @@ class RelationshipManager(object):
         nodeset_params = qb._query_params
 
         q = nodeset_query + " MATCH ({})".format(nodeset.ident) + \
-                ", (us) WHERE id(us)={self} CREATE UNIQUE" + new_rel
+            ", (us) WHERE id(us)={self} CREATE UNIQUE" + new_rel
 
         # update the nodeset params
         params.update(nodeset_params)
@@ -163,7 +162,6 @@ class RelationshipManager(object):
             self.source.cypher(q, params)
             return True
 
-
         rels_ = self.source.cypher(q + " RETURN r", params)
         if rels_ and rels_[0]:
             rels_ = rels_[0][0]
@@ -171,7 +169,10 @@ class RelationshipManager(object):
             return []
 
         if inflate_rels:
-            rel_instance = [self._set_start_end_cls(rel_model.inflate(rel_), nodeset.source) for rel_ in rels_]
+            rel_instance = [
+                self._set_start_end_cls(
+                    rel_model.inflate(rel_),
+                    nodeset.source) for rel_ in rels_]
 
             if hasattr(rel_instance, 'post_save'):
                 rel_instance.post_save()
@@ -289,10 +290,12 @@ class RelationshipManager(object):
             self._check_node(node)
             if ret:
                 ret = " AND " + ret
-            q = "MATCH " + my_rel + " WHERE id(them)=$them AND id(us)=$self {where} RETURN DISTINCT r ".format(where=ret)
+            q = "MATCH " + my_rel + \
+                " WHERE id(them)=$them AND id(us)=$self {where} RETURN DISTINCT r ".format(where=ret)
             data.update({'them': node.id})
         else:
-            q = "MATCH " + my_rel + " WHERE id(us)=$self AND {where} RETURN DISTINCT r ".format(where=ret)
+            q = "MATCH " + my_rel + \
+                " WHERE id(us)=$self AND {where} RETURN DISTINCT r ".format(where=ret)
 
         rels = self.source.cypher(q, data)[0]
         if not rels:
@@ -353,22 +356,47 @@ class RelationshipManager(object):
         self.source.cypher(q, {'old': old_node.id, 'new': new_node.id})
 
     @check_source
-    def disconnect(self, node):
+    def disconnect(self, *args, **kwargs):
         """
         Disconnect a node
 
         :param node:
         :return:
         """
-        rel = _rel_helper(lhs='a', rhs='b', ident='r', **self.definition)
-        q = "MATCH (a), (b) WHERE id(a)={self} and id(b)={them} " \
-            "MATCH " + rel + " DELETE r"
-        self.source.cypher(q, {'them': node.id})
+        if len(args) == 1 and isinstance(args[0], (StructuredNode, type(None))):
+            node = args[0]
+            if node is None:
+                raise ValueError("The node argument shouldnt be none")
+            # if just node provided
+            rel = _rel_helper(lhs='a', rhs='b', ident='r', **self.definition)
+            q = "MATCH (a), (b) WHERE id(a)={self} and id(b)={them} " \
+                "MATCH " + rel + " DELETE r"
+            self.source.cypher(q, {'them': node.id})
 
-        rel_model = self.definition['model']
+            rel_model = self.definition['model']
 
-        if hasattr(rel_model, 'post_disconnect'):
-            rel_model.post_disconnect(node)
+            if hasattr(rel_model, 'post_disconnect'):
+                rel_model.post_disconnect(node)
+
+        elif len(args) == 1 and isinstance(args[0], Q):
+            # if Q based filters provided
+            node_class = self.definition['node_class']
+            qb = self.source.nodes.query_builder
+            match, filters = qb._parse_q_filters('b', args[0], node_class)
+            rel = _rel_helper(lhs='a',
+                              rhs='b:' + node_class.__label__,
+                              ident='r',
+                              **self.definition)
+
+            q = "MATCH (a) WHERE id(a)={self} " \
+                "MATCH " + rel +" WHERE " + filters  + " DELETE r"
+            params = qb._query_params
+            self.source.cypher(q, params)
+
+            rel_model = self.definition['model']
+
+            if hasattr(rel_model, 'post_disconnect'):
+                rel_model.post_disconnect(node_class.nodes.filter(args[0]))
 
     @check_source
     def disconnect_all(self):
