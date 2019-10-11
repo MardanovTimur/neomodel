@@ -775,9 +775,10 @@ class QueryBuilder(object):
             return_operation = 'WITH'
             self._ast['return'] = return_string + " RETURN count(*)"
         else:
-            self._ast['return'] = 'count({})'.format(return_string)
+            distinct_string = 'DISTINCT' if self.node_set.is_distinct else ''
+            self._ast['return'] = 'count({} {})'.format(distinct_string,
+                    return_string)
 
-        #  self._ast['return'] = 'count({})'.format("*")
 
         # drop order_by, results in an invalid query
         self._ast.pop('order_by', None)
