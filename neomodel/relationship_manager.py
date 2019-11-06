@@ -7,7 +7,7 @@ from .match import OUTGOING, INCOMING, EITHER, _rel_helper, Traversal, NodeSet, 
 from .relationship import StructuredRel
 from .match import TraversalRelationships, _UNARY_OPERATORS
 from .match_q import QBase, Q
-from .core import StructuredNode
+from .core import StructuredNode, db
 
 
 # basestring python 3.x fallback
@@ -371,12 +371,15 @@ class RelationshipManager(object):
             rel = _rel_helper(lhs='a', rhs='b', ident='r', **self.definition)
             q = "MATCH (a), (b) WHERE id(a)={self} and id(b)={them} " \
                 "MATCH " + rel + " DELETE r"
-            self.source.cypher(q, {'them': node.id})
 
-            rel_model = self.definition['model']
+            with db.transaction:
+                rel_model = self.definition['model']
+                if hasattr(rel_model, 'before_disconnect'):
+                    rel_model.before_disconnect()
 
-            if hasattr(rel_model, 'post_disconnect'):
-                rel_model.post_disconnect(node)
+                self.source.cypher(q, {'them': node.id})
+
+
 
         elif len(args) == 1 and isinstance(args[0], Q):
             # if Q based filters provided
@@ -403,12 +406,14 @@ class RelationshipManager(object):
                     filters + " DELETE b_" + self.name
 
             params = qb._query_params
-            self.source.cypher(q, params)
 
-            rel_model = self.definition['model']
+            with db.transaction:
+                rel_model = self.definition['model']
+                if hasattr(rel_model, 'before_disconnect'):
+                    rel_model.before_disconnect()
 
-            if hasattr(rel_model, 'post_disconnect'):
-                rel_model.post_disconnect(node_class.nodes.filter(args[0]))
+                self.source.cypher(q, params)
+
         elif len(args) == 1 and isinstance(args[0], NodeSet):
             # if NodeSet provided
             node_class = self.definition['node_class']
@@ -426,12 +431,12 @@ class RelationshipManager(object):
 
             query += " MATCH (a), " + rel + " WHERE id(a)={self} DELETE r;"
 
-            self.source.cypher(query, params)
+            with db.transaction:
+                rel_model = self.definition['model']
+                if hasattr(rel_model, 'before_disconnect'):
+                    rel_model.before_disconnect()
 
-            rel_model = self.definition['model']
-
-            if hasattr(rel_model, 'post_disconnect'):
-                rel_model.post_disconnect(node_class.nodes.filter(args[0]))
+                self.source.cypher(query, params)
         else:
             raise NotImplementedError('This operation not implemented yet')
 
