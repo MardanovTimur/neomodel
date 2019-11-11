@@ -363,6 +363,12 @@ class RelationshipManager(object):
         :param node:
         :return:
         """
+        def run(instance, q, params):
+            rel_model = instance.definition['model']
+            if hasattr(rel_model, 'before_disconnect'):
+                rel_model.before_disconnect()
+            instance.source.cypher(q, params)
+
         if len(args) == 1 and isinstance(args[0], (StructuredNode, type(None))):
             node = args[0]
             if node is None:
@@ -372,14 +378,12 @@ class RelationshipManager(object):
             q = "MATCH (a), (b) WHERE id(a)={self} and id(b)={them} " \
                 "MATCH " + rel + " DELETE r"
 
-            with db.transaction:
-                rel_model = self.definition['model']
-                if hasattr(rel_model, 'before_disconnect'):
-                    rel_model.before_disconnect()
-
-                self.source.cypher(q, {'them': node.id})
-
-
+            params = {'them': node.id}
+            try:
+                with db.transaction:
+                    run(self, q, params)
+            except SystemError:
+                run(self, q, params)
 
         elif len(args) == 1 and isinstance(args[0], Q):
             # if Q based filters provided
@@ -406,13 +410,11 @@ class RelationshipManager(object):
                     filters + " DELETE b_" + self.name
 
             params = qb._query_params
-
-            with db.transaction:
-                rel_model = self.definition['model']
-                if hasattr(rel_model, 'before_disconnect'):
-                    rel_model.before_disconnect()
-
-                self.source.cypher(q, params)
+            try:
+                with db.transaction:
+                    run(self, q, params)
+            except SystemError:
+                run(self, q, params)
 
         elif len(args) == 1 and isinstance(args[0], NodeSet):
             # if NodeSet provided
@@ -431,12 +433,11 @@ class RelationshipManager(object):
 
             query += " MATCH (a), " + rel + " WHERE id(a)={self} DELETE r;"
 
-            with db.transaction:
-                rel_model = self.definition['model']
-                if hasattr(rel_model, 'before_disconnect'):
-                    rel_model.before_disconnect()
-
-                self.source.cypher(query, params)
+            try:
+                with db.transaction:
+                    run(self, query, params)
+            except SystemError:
+                run(self, query, params)
         else:
             raise NotImplementedError('This operation not implemented yet')
 
