@@ -363,10 +363,15 @@ class RelationshipManager(object):
         :param node:
         :return:
         """
-        def run(instance, q, params):
+        def run(instance, q, params, extra=None):
             rel_model = instance.definition['model']
             if hasattr(rel_model, 'before_disconnect'):
-                rel_model.before_disconnect()
+                kwargs = {
+                    'start_node_id': instance.source.id,
+                }
+                if extra is not None and isinstance(extra, dict):
+                    kwargs.update(extra)
+                rel_model.before_disconnect(**kwargs)
             instance.source.cypher(q, params)
 
         if len(args) == 1 and isinstance(args[0], (StructuredNode, type(None))):
@@ -381,9 +386,9 @@ class RelationshipManager(object):
             params = {'them': node.id}
             try:
                 with db.transaction:
-                    run(self, q, params)
+                    run(self, q, params, {'end_node_id': node.id})
             except SystemError:
-                run(self, q, params)
+                run(self, q, params, {'end_node_id': node.id})
 
         elif len(args) == 1 and isinstance(args[0], Q):
             # if Q based filters provided
