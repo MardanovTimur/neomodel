@@ -16,6 +16,7 @@ from neomodel import (
     DateTimeProperty,
     install_all_labels,
 )
+from neomodel.util import union
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -158,6 +159,12 @@ def test_has_functionality():
     cars = Car.nodes.filter()
     user.car.disconnect(cars)
     print(user.car.single())
+
+
+    cars = Car.nodes.set_limit(10)
+    cars2 = Car.nodes.set_skip(10).set_limit(20)
+    no = union(cars, cars2)
+    no.all()
 
 
 

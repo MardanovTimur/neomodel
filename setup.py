@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='neomodel-next',
-    version='3.5.2.3',
+    version='3.5.2.4',
     description='An object mapper for the neo4j graph database.',
     long_description=open('README.rst').read(),
     author='Robin Edwards; Mardanov Timur',

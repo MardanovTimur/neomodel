@@ -396,3 +396,36 @@ def auto_update(node):
 
 def get_rhs_ident(rel_field):
     return rel_field._raw_class.split('.')[-1]
+
+
+def union(*nodesets):
+    queries = []
+    params = {}
+
+    ident = None
+    source_class = None
+
+    if nodesets:
+        ident = nodesets[0].ident
+        source_class = nodesets[0].source_class
+    else:
+        raise Exception("Nodesets isnt provided")
+
+    for nodeset in nodesets:
+        qb = nodeset.query_builder
+        queries.append(qb.build_query())
+        params.update(qb._query_params)
+
+    query = " UNION ".join(queries)
+    parameter = "union_block"
+    params = {parameter: params}
+
+    # only python 3.6 support
+    pattern = f"""
+    CALL apoc.cypher.run(
+        "{query}",
+        ${parameter}
+    ) YIELD value
+    WITH value.{ident}
+    """
+    return source_class.nodes.extend_cypher(pattern, params)
