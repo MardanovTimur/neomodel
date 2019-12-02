@@ -97,6 +97,10 @@ class RelationshipManager(object):
                 rp[p] = '{' + p + '}'
                 params[p] = v
 
+            # set right_id and left_id
+            tmp.start_node_id = self.source.id,
+            tmp.end_node_id = node.id
+
             if hasattr(tmp, 'pre_save'):
                 tmp.pre_save()
 
