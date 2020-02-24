@@ -1157,7 +1157,7 @@ class NodeSet(BaseSet):
             self.q_filters = Q(self.q_filters & Q(*args, **kwargs))
         return self
 
-    def append_relationship(self, field):
+    def append_relationship(self, field, rel_node_alias=None):
         """Field must be relationship definition
         Just append relationship to model. Without extra queries:
             Example:
@@ -1174,7 +1174,8 @@ class NodeSet(BaseSet):
         rhs_ident = get_rhs_ident(field)
         rel_ident = "{}_{}".format(ident, rhs_ident.lower())
         rel_query = _rel_helper(ident,
-                                ":{label}".format(label=rhs_ident),
+                                "{na}:{label}".format(na=rel_node_alias or '',
+                                                      label=rhs_ident),
                                 rel_ident,
                                 field.definition['relation_type'])
         extra_match_set = set(self._extra_queries['match'])
