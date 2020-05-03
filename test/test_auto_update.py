@@ -168,7 +168,6 @@ def test_has_functionality():
 
 
 
-
     #  car = Car.nodes.filter()
     #  car = car.return_fields(['car', ])
     #  print(len(car))
@@ -178,7 +177,10 @@ def test_has_functionality():
 
     #  print(ItemCarRel.defined_properties(rels=False))
 
-
+    #  print('--' * (2**5))
+    #  cars = Car.nodes.filter()
+    #  cars = cars.add_where("EXISTS((car)--(:Item))")
+    #  print(cars.all())
 
 if __name__ == "__main__":
     config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL',

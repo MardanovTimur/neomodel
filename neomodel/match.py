@@ -355,6 +355,8 @@ class QueryBuilder(object):
         quote = ','
         if extra['match']:
             self._ast['match'] = list(set(self._ast['match']) | set(extra['match']))
+        if extra['where']:
+            self._ast['where'] += extra['where']
         if extra.get('return') is not None:
             self._ast['return'] = extra['return']
 
@@ -1181,6 +1183,11 @@ class NodeSet(BaseSet):
         extra_match_set = set(self._extra_queries['match'])
         extra_match_set |= set((rel_query, ))
         self._extra_queries['match'] = list(extra_match_set)
+        self._extra_queries['need'] = True
+        return self
+
+    def add_where(self, string):
+        self._extra_queries['where'].append(string)
         self._extra_queries['need'] = True
         return self
 
