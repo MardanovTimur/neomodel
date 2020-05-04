@@ -688,18 +688,21 @@ class QueryBuilder(object):
         re_comp = re.compile(regex_exp, re.MULTILINE)
         re_matches = [list(re_comp.finditer(lookup.replace('\r', '')
                                             .replace('\n', ''))) for lookup in lookups[1:]]
+
+
         lookups = [lookups[0], ] if len(lookups) else []
         for re_match in re_matches:
             if len(re_match) > 1:
-                looks = []
                 initial_string = re_match[0].string
-                begin_indices = [match.span()[0] for match in re_match[1:]]
-                for ind in begin_indices:
-                    lookups.append(initial_string[:ind])
-                lookups.append(initial_string[ind:])
+
+                begin_indices = [0] + [match.span()[0] for match in re_match[1:]]
+                for i in range(len(begin_indices) - 1):
+                    lookups.append(initial_string[begin_indices[i]:begin_indices[i+1]])
+                lookups.append(initial_string[begin_indices[-1]:])
                 # logic here
             elif len(re_match) == 1:
                 lookups.append(re_match[0].string)
+
 
         for indice, lookup_query in enumerate(lookups):
             lookup_self_ident = lookup_query.strip(' ').split(" ")[-1]

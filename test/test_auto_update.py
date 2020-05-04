@@ -27,10 +27,17 @@ class ItemCarRel(StructuredRel):
 class UserCarRel(StructuredRel):
     vag = StringProperty()
 
+class User2(StructuredNode):
+    pass
+
+class User1(StructuredNode):
+    user2 = RelationshipTo('User2', 'OWN', ZeroOrMore)
+
 
 class User(StructuredNode):
     username = StringProperty()
     car = RelationshipFrom('Car', 'OWN', ZeroOrMore, UserCarRel)
+    user1 = RelationshipTo('User1', 'OWN', ZeroOrMore)
 
 
 class Item(StructuredNode):
@@ -67,6 +74,12 @@ def test_has_functionality():
     m = Car(name='maserrati').save()
     l = Car(name='lamborgini').save()
     h = Car(name='hyndau').save()
+
+    cars = Car.nodes.has(
+        item=Item.nodes.filter(),
+        owner=User.nodes.has(user1=User1.nodes.has(user2=User2.nodes.filter()))
+    )
+    print(cars.all())
 
 
     m = Car(name='super car', integer_choices=1, ses=[1,2]).save()
