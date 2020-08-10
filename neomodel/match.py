@@ -219,7 +219,7 @@ def process_filter_args(cls, kwargs):
     return output
 
 
-def process_has_args(builder, kwargs, is_not):
+def process_has_args(builder, kwargs, is_not, named_relationship):
     """
     loop through has parameters check they correspond to class rels defined
     """
@@ -237,7 +237,7 @@ def process_has_args(builder, kwargs, is_not):
         # get `key` definition from field
         definition = rel_definitions[key].definition
         # set parameters for build class, for create relationship query
-        update_matches(value, builder, key, definition, is_not, **kwargs)
+        update_matches(value, builder, key, definition, is_not, named_relationship, **kwargs)
 
 
 def process_union(nodeset, kwargs):
@@ -541,6 +541,7 @@ class QueryBuilder(object):
                         'nodeset_origin': node_set,
                         'self': self,
                         'is_not': value.get('is_not', False),
+                        'named_relationship': value.get('named_relationship', False)
                     }
                     generate_label(value['value'], **props)
                 else:
@@ -968,7 +969,7 @@ class NodeSet(BaseSet):
         # for return aliases
         self._return_fields = list()
 
-    def extend_cypher(self, query, params={}):
+    def extend_cypher(self, query, params={}, force_alias=True):
         """
         Attrs:
             query (str): Cypher query.
@@ -984,7 +985,8 @@ class NodeSet(BaseSet):
 
         assert 'WITH' in query, 'query should contains and returns WITH statement'
 
-        query += " AS {}".format(self.ident)
+        if force_alias:
+            query += " AS {}".format(self.ident)
 
         self.lookup += query
 
@@ -1139,7 +1141,8 @@ class NodeSet(BaseSet):
          & or |
         """
         is_not = kwargs.pop('is_not', False)
-        process_has_args(self, kwargs, is_not=is_not)
+        named_relationship = kwargs.pop('named_relationship', True)
+        process_has_args(self, kwargs, is_not=is_not, named_relationship=named_relationship)
         return self
 
     def union(self, **kwargs):
@@ -1253,6 +1256,7 @@ def _um_register(argument, builder, key, definition, *args, **kwargs):
         'value': argument,
         'operation': ' OR ' if 'operation' in kwargs and kwargs['operation'] == '|' else ' AND ',
         **not_condition,
+        'named_relationship': args[1],
     }
 
 
@@ -1288,9 +1292,14 @@ def _generate_label_ns(type, **kwargs):
     # insert into origin nodeset `match` option
     matches = inner_query_builder._ast.setdefault('match', [])
 
+    rel_ident = None
+    if kwargs.get('named_relationship'):
+        rel_ident = str(inner_ident + '__' + kwargs['source_ident'])
+
     match_relation = _rel_helper(
         rhs=kwargs['source_ident'],
         lhs=inner_ident,
+        ident=rel_ident,
         reverse=True,
         **kwargs['val'])
 

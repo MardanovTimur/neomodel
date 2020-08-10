@@ -77,9 +77,12 @@ def test_has_functionality():
 
     cars = Car.nodes.has(
         item=Item.nodes.filter(),
-        owner=User.nodes.has(user1=User1.nodes.has(user2=User2.nodes.filter()))
+        owner=User.nodes.has(user1=User1.nodes.has(user2=User2.nodes.filter())),
+        named_relationship=True,
     )
+
     print(cars.all())
+    raise Exception('stop')
 
 
     m = Car(name='super car', integer_choices=1, ses=[1,2]).save()
