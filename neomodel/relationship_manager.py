@@ -157,7 +157,7 @@ class RelationshipManager(object):
         nodeset_params = qb._query_params
 
         q = nodeset_query + " MATCH ({})".format(nodeset.ident) + \
-            ", (us) WHERE id(us)={self} CREATE UNIQUE" + new_rel
+            ", (us) WHERE id(us)={self} MERGE " + new_rel
 
         # update the nodeset params
         params.update(nodeset_params)
